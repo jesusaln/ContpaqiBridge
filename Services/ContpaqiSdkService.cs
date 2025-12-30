@@ -107,6 +107,15 @@ namespace ContpaqiBridge.Services
         [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
         private static extern int fCancelarModificacionProducto();
 
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fPosPrimerProducto();
+
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fPosSiguienteProducto();
+
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fLeeDatoProducto(string aCampo, StringBuilder aValor, int aLen);
+
         // ============ Funciones para Unidades ============
         [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
         private static extern int fPosicionaPrimeraUnidad();
@@ -553,6 +562,12 @@ namespace ContpaqiBridge.Services
                         return (false, $"Producto no existe: {producto.codigo} ({errBusca})", 0);
                     }
 
+                    // Obtener el ID del producto
+                    StringBuilder idProductoSb = new StringBuilder(20);
+                    fLeeDatoProducto("CIDPRODUCTO", idProductoSb, 20);
+                    string idProducto = idProductoSb.ToString().Trim();
+                    _logger.LogInformation($"Producto {producto.codigo} tiene ID: {idProducto}");
+
                     // Insertar movimiento
                     _logger.LogInformation($"fInsertarMovimiento() para producto: {producto.codigo}");
                     int resInsertarMov = fInsertarMovimiento();
@@ -563,27 +578,41 @@ namespace ContpaqiBridge.Services
                         continue; // Intentar con el siguiente producto
                     }
 
-                    // Setear campos del movimiento
-                    var camposMovimiento = new Dictionary<string, string>
+                    // Setear campos del movimiento - Usar ID del producto
+                    // Intentar primero con CIDPRODUCTO (ID), si falla usar código
+                    int resSetProd = fSetDatoMovimiento("CIDPRODUCTO", idProducto);
+                    if (resSetProd != 0)
                     {
-                        { "CCONSECUTIVO", consecutivo.ToString() },
-                        { "CCODPRODUCTO", producto.codigo },
-                        { "CUNIDADES", producto.cantidad.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) },
-                        { "CPRECIO", producto.precio.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) },
-                        { "CCODALMACEN", "1" },
-                        { "CREFERENCIA", "API Mov" }
-                    };
-
-                    foreach (var campo in camposMovimiento)
-                    {
-                        _logger.LogInformation($"fSetDatoMovimiento('{campo.Key}', '{campo.Value}')");
-                        int resSetMov = fSetDatoMovimiento(campo.Key, campo.Value);
-                        if (resSetMov != 0)
+                        _logger.LogWarning($"CIDPRODUCTO falló ({resSetProd}), intentando con CCODIGOPRODUCTO...");
+                        resSetProd = fSetDatoMovimiento("CCODIGOPRODUCTO", producto.codigo);
+                        if (resSetProd != 0)
                         {
-                            string err = GetUltimoError(resSetMov);
-                            _logger.LogWarning($"fSetDatoMovimiento({campo.Key}) falló: {resSetMov} - {err}");
+                            _logger.LogWarning($"CCODIGOPRODUCTO falló ({resSetProd}), intentando con CCODPRODSER...");
+                            fSetDatoMovimiento("CCODPRODSER", producto.codigo);
                         }
                     }
+
+                    // Obtener la unidad de medida del producto
+                    StringBuilder idUnidadSb = new StringBuilder(20);
+                    fLeeDatoProducto("CIDUNIDADBASE", idUnidadSb, 20);
+                    string idUnidad = idUnidadSb.ToString().Trim();
+                    if (string.IsNullOrEmpty(idUnidad) || idUnidad == "0") idUnidad = "1"; // Default ACTIVIDAD o similar
+                    _logger.LogInformation($"Producto {producto.codigo} usa Unidad ID: {idUnidad}");
+
+                    // Setear unidades, precio y unidad de medida
+                    fSetDatoMovimiento("CUNIDADES", producto.cantidad.ToString("F4", System.Globalization.CultureInfo.InvariantCulture));
+                    fSetDatoMovimiento("CPRECIO", producto.precio.ToString("F4", System.Globalization.CultureInfo.InvariantCulture));
+                    fSetDatoMovimiento("CIDUNIDAD", idUnidad);
+                    
+                    // Almacén (ID 1 es Almacen Uno según SQL)
+                    int resAlmacen = fSetDatoMovimiento("CIDALMACEN", "1");
+                    if (resAlmacen != 0)
+                    {
+                        _logger.LogWarning($"CIDALMACEN falló ({resAlmacen}), intentando con 0...");
+                        fSetDatoMovimiento("CIDALMACEN", "0");
+                    }
+                    
+                    fSetDatoMovimiento("CREFERENCIA", "API Mov");
 
                     // Guardar movimiento
                     _logger.LogInformation($"fGuardaMovimiento() para {producto.codigo}");
@@ -597,7 +626,7 @@ namespace ContpaqiBridge.Services
                         if (resGuardaMov == 130410)
                         {
                             _logger.LogInformation("Reintentando sin almacén...");
-                            fSetDatoMovimiento("CCODALMACEN", "");
+                            fSetDatoMovimiento("CIDALMACEN", "");
                             resGuardaMov = fGuardaMovimiento();
                             if (resGuardaMov == 0)
                             {
@@ -950,6 +979,65 @@ namespace ContpaqiBridge.Services
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Lista los primeros N productos de la empresa
+        /// </summary>
+        public List<(string codigo, string nombre, double precio)> ListarProductos(string rutaEmpresa, int limite = 20)
+        {
+            var productos = new List<(string codigo, string nombre, double precio)>();
+            
+            try
+            {
+                if (!InicializarSDK())
+                {
+                    _logger.LogError("No se pudo inicializar SDK para listar productos");
+                    return productos;
+                }
+
+                if (!AbrirEmpresa(rutaEmpresa))
+                {
+                    _logger.LogError("No se pudo abrir empresa para listar productos");
+                    return productos;
+                }
+
+                int res = fPosPrimerProducto();
+                int count = 0;
+                
+                while (res == 0 && count < limite)
+                {
+                    StringBuilder codigoSb = new StringBuilder(50);
+                    StringBuilder nombreSb = new StringBuilder(256);
+                    StringBuilder precioSb = new StringBuilder(50);
+
+                    fLeeDatoProducto("CCODIGOPRODUCTO", codigoSb, 50);
+                    fLeeDatoProducto("CNOMBREPRODUCTO", nombreSb, 256);
+                    fLeeDatoProducto("CPRECIO1", precioSb, 50);
+
+                    string codigo = codigoSb.ToString().Trim();
+                    string nombre = nombreSb.ToString().Trim();
+                    double.TryParse(precioSb.ToString().Trim(), out double precio);
+
+                    if (!string.IsNullOrEmpty(codigo))
+                    {
+                        productos.Add((codigo, nombre, precio));
+                        _logger.LogInformation($"Producto encontrado: {codigo} - {nombre}");
+                    }
+
+                    res = fPosSiguienteProducto();
+                    count++;
+                }
+
+                CerrarEmpresa();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar productos");
+                CerrarEmpresa();
+            }
+
+            return productos;
         }
 
         public void Dispose()

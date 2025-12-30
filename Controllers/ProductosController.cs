@@ -18,6 +18,36 @@ namespace ContpaqiBridge.Controllers
         }
 
         /// <summary>
+        /// Lista los productos existentes en CONTPAQi
+        /// </summary>
+        [HttpGet]
+        public IActionResult ListarProductos([FromQuery] string rutaEmpresa, [FromQuery] int limite = 20)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(rutaEmpresa))
+                    return BadRequest(new { success = false, message = "rutaEmpresa es requerida como query param" });
+
+                _logger.LogInformation($"Listando productos de: {rutaEmpresa}");
+
+                var service = (ContpaqiSdkService)_sdkService;
+                var productos = service.ListarProductos(rutaEmpresa, limite);
+
+                return Ok(new
+                {
+                    success = true,
+                    count = productos.Count,
+                    productos = productos.Select(p => new { codigo = p.codigo, nombre = p.nombre, precio = p.precio })
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar productos");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Crea un producto en CONTPAQi
         /// </summary>
         [HttpPost]
