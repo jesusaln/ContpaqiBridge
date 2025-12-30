@@ -3,3 +3,6 @@ obj/
 .vscode/
 *.user
 *.lock.json
+gh.zip
+gh.exe
+LICENSE
