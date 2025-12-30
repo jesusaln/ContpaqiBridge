@@ -60,8 +60,11 @@ namespace ContpaqiBridge.Services
         [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         private static extern int fSetDatoDocumento(string aCampo, string aValor);
 
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fLeeDatoDocumento(string aCampo, StringBuilder aValor, int aLen);
+
         [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern int fEditarDocumento();
+        private static extern int fEditaDocumento();
 
         [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
         private static extern int fCancelarModificacionDocumento();
@@ -75,6 +78,9 @@ namespace ContpaqiBridge.Services
         [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
         private static extern int fGuardaMovimiento();
 
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fEmitirDocumento(string aCodConcepto, string aSerie, double aFolio, string aPassword, string aArchivoXML);
+
         // ============ Funciones para Clientes/Proveedores ============
         
         [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
@@ -85,6 +91,15 @@ namespace ContpaqiBridge.Services
 
         [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         private static extern int fLeeDatoCteProv(string aCampo, StringBuilder aValor, int aLen);
+
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fEditaCteProv();
+
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fGuardaCteProv();
+
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fSetDatoCteProv(string aCampo, string aValor);
 
         // ============ Funciones para Productos ============
         
@@ -97,6 +112,9 @@ namespace ContpaqiBridge.Services
         // Funciones bajo nivel para productos
         [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
         private static extern int fInsertaProducto();
+
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fEditaProducto();
 
         [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         private static extern int fSetDatoProducto(string aCampo, string aValor);
@@ -250,7 +268,7 @@ namespace ContpaqiBridge.Services
             _defaultUsuario = config["Contpaqi:DefaultUsuario"] ?? "";
             _defaultClave = config["Contpaqi:DefaultClave"] ?? "";
 
-            // Leer DirectorioBase desde el Registro de Windows (como indica el ejemplo oficial)
+            // Leer DirectorioBase desde el Registro de Windows
             _directorioBase = ObtenerDirectorioBaseDelRegistro();
             
             if (!string.IsNullOrEmpty(_directorioBase))
@@ -262,16 +280,64 @@ namespace ContpaqiBridge.Services
                 SetCurrentDirectory(_directorioBase);
                 System.IO.Directory.SetCurrentDirectory(_directorioBase);
                 
-                // Agregar al PATH
+                // Construir PATH con todos los directorios relevantes de CONTPAQi
                 string currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
-                if (!currentPath.Contains(_directorioBase))
+                var pathsToAdd = new List<string> { _directorioBase };
+
+                // Buscar otros directorios en el registro que son vitales para el timbrado
+                AgregarPathDesdeRegistro(pathsToAdd, @"SOFTWARE\WOW6432Node\Computación en Acción, SA CV\CONTPAQ I Formatos Digitales", "DIRECTORIOBASE");
+                AgregarPathDesdeRegistro(pathsToAdd, @"SOFTWARE\WOW6432Node\Computación en Acción, SA CV\CONTPAQ I Servidor de Aplicaciones", "DIRECTORIOBASE");
+                AgregarPathDesdeRegistro(pathsToAdd, @"SOFTWARE\WOW6432Node\Computación en Acción, SA CV\CONTPAQ I SDK", "DIRECTORIOBASE");
+                
+                // Agregar también subcarpetas conocidas
+                string compacBase = Path.GetDirectoryName(_directorioBase) ?? @"C:\Program Files (x86)\Compac";
+                string sacPath = Path.Combine(compacBase, "Servidor de Aplicaciones");
+                string servidorPath = Path.Combine(compacBase, "Servidor");
+                
+                if (!pathsToAdd.Contains(sacPath)) pathsToAdd.Add(sacPath);
+                if (!pathsToAdd.Contains(servidorPath)) pathsToAdd.Add(servidorPath);
+
+                foreach (var path in pathsToAdd)
                 {
-                    Environment.SetEnvironmentVariable("PATH", _directorioBase + ";" + currentPath);
+                    if (Directory.Exists(path) && !currentPath.Contains(path, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogInformation($"Agregando al PATH: {path}");
+                        currentPath = path + ";" + currentPath;
+                    }
                 }
+
+                Environment.SetEnvironmentVariable("PATH", currentPath);
+                _logger.LogInformation("PATH actualizado con múltiples directorios de CONTPAQi para resolver dependencias de CACSql.dll.");
             }
             else
             {
                 _logger.LogError("No se pudo obtener DirectorioBase del Registro de Windows.");
+            }
+        }
+
+        private void AgregarPathDesdeRegistro(List<string> list, string keyPath, string valueName)
+        {
+            try
+            {
+                using (var key = Registry.LocalMachine.OpenSubKey(keyPath))
+                {
+                    if (key != null)
+                    {
+                        var valor = key.GetValue(valueName);
+                        if (valor != null)
+                        {
+                            string path = valor.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(path) && Directory.Exists(path) && !list.Contains(path))
+                            {
+                                list.Add(path);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"No se pudo leer la clave {keyPath}: {ex.Message}");
             }
         }
 
@@ -427,24 +493,29 @@ namespace ContpaqiBridge.Services
         /// Flujo: fInsertarDocumento -> fSetDatoDocumento (campos) -> fGuardaDocumento
         /// Esto evita el crash 0xC0000005 causado por marshalling incorrecto de estructuras
         /// </summary>
-        public (bool exito, string mensaje, int idDocumento) CrearFactura(
+        public (bool exito, string mensaje, int idDocumento, string serie, double folio) CrearFactura(
             string rutaEmpresa,
             string codigoConcepto,
             string codigoCliente,
-            List<(string codigo, double cantidad, double precio)> productos)
+            List<(string codigo, double cantidad, double precio)> productos,
+            string usoCFDI = "G01",
+            string formaPago = "99",
+            string metodoPago = "PUE")
         {
+            string serieOut = "";
+            double folioOut = 0;
             try
             {
                 // 1. Inicializar SDK
                 if (!InicializarSDK())
                 {
-                    return (false, "No se pudo inicializar el SDK", 0);
+                    return (false, "No se pudo inicializar el SDK", 0, "", 0);
                 }
 
                 // 2. Abrir empresa
                 if (!AbrirEmpresa(rutaEmpresa))
                 {
-                    return (false, $"No se pudo abrir la empresa: {GetUltimoError()}", 0);
+                    return (false, $"No se pudo abrir la empresa: {GetUltimoError()}", 0, "", 0);
                 }
 
                 // 3. Obtener siguiente folio
@@ -454,9 +525,12 @@ namespace ContpaqiBridge.Services
                 if (resultFolio != 0)
                 {
                     CerrarEmpresa();
-                    return (false, $"Error al obtener folio: {GetUltimoError(resultFolio)}", 0);
+                    return (false, $"Error al obtener folio: {GetUltimoError(resultFolio)}", 0, "", 0);
                 }
                 string serie = serieStr.ToString().Trim();
+                serieOut = serie;
+                folioOut = folioNum;
+
                 _logger.LogInformation($"Folio obtenido: Serie={serie}, Folio={folioNum}");
 
                 // 4. Buscar cliente y obtener sus datos
@@ -467,7 +541,7 @@ namespace ContpaqiBridge.Services
                     string errCte = GetUltimoError(resBuscaCte);
                     _logger.LogError($"Cliente no encontrado: {codigoCliente} - {errCte}");
                     CerrarEmpresa();
-                    return (false, $"Cliente no existe: {codigoCliente} ({errCte})", 0);
+                    return (false, $"Cliente no existe: {codigoCliente} ({errCte})", 0, "", 0);
                 }
                 
                 // Obtener ID, razón social y RFC del cliente
@@ -494,7 +568,7 @@ namespace ContpaqiBridge.Services
                     string err = GetUltimoError(resInsertarDoc);
                     _logger.LogError($"fInsertarDocumento falló: {resInsertarDoc} - {err}");
                     CerrarEmpresa();
-                    return (false, $"Error al insertar documento: {err}", 0);
+                    return (false, $"Error al insertar documento: {err}", 0, "", 0);
                 }
 
                 // ============================================================
@@ -518,8 +592,19 @@ namespace ContpaqiBridge.Services
                     ("CIDMONEDA", "1"),                          // 1 = MXN
                     ("CTIPOCAMBIO", "1.00"),
                     ("CREFERENCIA", "API Bridge"),
-                    ("COBSERVACIONES", $"Generado via API {DateTime.Now:yyyy-MM-dd HH:mm}")
+                    ("COBSERVACIONES", $"Generado via API {DateTime.Now:yyyy-MM-dd HH:mm}"),
+                    ("CMETODOPAG", formaPago),
+                    ("CCONDIPAGO", metodoPago)
                 };
+
+                // El Uso de CFDI a veces falla en el documento, pero se hereda del cliente si no se pone.
+                // Intentamos ponerlo pero no bloqueamos si falla.
+                if (!string.IsNullOrEmpty(usoCFDI))
+                {
+                    int resUso = fSetDatoDocumento("CUSOCFDI", usoCFDI);
+                    if (resUso != 0) 
+                        _logger.LogWarning($"fSetDatoDocumento(CUSOCFDI) no aceptado ({resUso}). Se usará el del cliente.");
+                }
 
                 foreach (var item in camposDocumento)
                 {
@@ -542,9 +627,14 @@ namespace ContpaqiBridge.Services
                     _logger.LogError($"fGuardaDocumento (cabecera) falló: {resGuardaCabecera} - {err}");
                     fCancelarModificacionDocumento();
                     CerrarEmpresa();
-                    return (false, $"Error al guardar cabecera: {err}", 0);
+                    return (false, $"Error al guardar cabecera: {err}", 0, "", 0);
                 }
-                _logger.LogInformation("Cabecera del documento guardada exitosamente.");
+                
+                StringBuilder idDocSb = new StringBuilder(20);
+                fLeeDatoDocumento("CIDDOCUMENTO", idDocSb, 20);
+                int.TryParse(idDocSb.ToString().Trim(), out int idDocumento);
+
+                _logger.LogInformation($"Cabecera del documento guardada exitosamente. ID: {idDocumento}");
 
                 int movimientosAgregados = 0;
                 int consecutivo = 1;
@@ -559,7 +649,7 @@ namespace ContpaqiBridge.Services
                         string errBusca = GetUltimoError(resBusca);
                         _logger.LogError($"Producto no existe: {producto.codigo} - {errBusca}");
                         CerrarEmpresa();
-                        return (false, $"Producto no existe: {producto.codigo} ({errBusca})", 0);
+                        return (false, $"Producto no existe: {producto.codigo} ({errBusca})", 0, serieOut, folioOut);
                     }
 
                     // Obtener el ID del producto
@@ -649,7 +739,7 @@ namespace ContpaqiBridge.Services
                 {
                     _logger.LogError("No se agregaron movimientos válidos.");
                     CerrarEmpresa();
-                    return (false, "No se agregaron productos válidos a la factura.", 0);
+                    return (false, "No se agregaron productos válidos a la factura.", 0, "", 0);
                 }
                 else if (movimientosAgregados == 0)
                 {
@@ -659,14 +749,59 @@ namespace ContpaqiBridge.Services
                 // 8. Cerrar empresa
                 CerrarEmpresa();
                 _logger.LogInformation($"Factura creada exitosamente. Serie: {serie}, Folio: {folioNum}, Movimientos: {movimientosAgregados}");
-                return (true, $"Factura creada exitosamente. Serie: {serie}, Folio: {folioNum}", 0);
+                return (true, $"Factura creada exitosamente. Serie: {serie}, Folio: {folioNum}", idDocumento, serie, folioNum);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al crear factura");
                 try { fCancelarModificacionDocumento(); } catch { }
                 CerrarEmpresa();
-                return (false, $"Excepción: {ex.Message}", 0);
+                return (false, $"Excepción: {ex.Message}", 0, serieOut, folioOut);
+            }
+        }
+
+        /// <summary>
+        /// Timbra una factura existente usando fEmitirDocumento
+        /// </summary>
+        public (bool exito, string mensaje) TimbrarFactura(string rutaEmpresa, string codigoConcepto, string serie, double folio, string passCSD)
+        {
+            try
+            {
+                if (!InicializarSDK()) return (false, "No se pudo inicializar el SDK");
+                if (!AbrirEmpresa(rutaEmpresa)) return (false, "No se pudo abrir la empresa");
+
+                _logger.LogInformation($"Timbrando factura: Concepto={codigoConcepto}, Serie={serie}, Folio={folio}");
+                
+                // fEmitirDocumento(codConcepto, serie, folio, password, archivoXML)
+                // Si archivoXML está vacío, usa el nombre por omisión del concepto
+                int result = fEmitirDocumento(codigoConcepto, serie, folio, passCSD, "");
+                
+                CerrarEmpresa();
+
+                if (result != 0)
+                {
+                    string err = GetUltimoError(result);
+                    _logger.LogError($"Error al timbrar factura {serie}{folio}: {result} - {err}");
+                    
+                    // Log adicional para diagnosticar error 3
+                    if (result == 3)
+                    {
+                        _logger.LogError("El Error 3 (CACSql.dll) indica un problema con las librerías de base de datos o dependencias del SDK.");
+                        _logger.LogInformation($"DirectorioBase: {_directorioBase}");
+                        _logger.LogInformation($"PATH actual: {Environment.GetEnvironmentVariable("PATH")}");
+                    }
+                    
+                    return (false, $"Error al timbrar: {err}");
+                }
+
+                _logger.LogInformation($"Factura {serie}{folio} timbrada exitosamente.");
+                return (true, "Factura timbrada exitosamente");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Excepción durante el timbrado");
+                CerrarEmpresa();
+                return (false, $"Excepción: {ex.Message}");
             }
         }
 
@@ -684,7 +819,10 @@ namespace ContpaqiBridge.Services
             string codigoPostal = "",
             string ciudad = "",
             string estado = "",
-            string pais = "México")
+            string pais = "México",
+            string regimenFiscal = "",
+            string usoCFDI = "",
+            string formaPago = "")
         {
             try
             {
@@ -706,6 +844,19 @@ namespace ContpaqiBridge.Services
                 {
                     CerrarEmpresa();
                     return (true, "El cliente ya existe en el catálogo", 0);
+                }
+
+                // 2.1 Especial para Público en General (CFDI 4.0)
+                if (codigo.ToUpper() == "PG")
+                {
+                    _logger.LogInformation("Detectado cliente PG. Aplicando configuración estándar para Público en General (CFDI 4.0)");
+                    razonSocial = "PUBLICO EN GENERAL";
+                    rfc = "XAXX010101000";
+                    regimenFiscal = "616";
+                    usoCFDI = "S01";
+                    // No sobreescribimos forma de pago si el usuario mandó una específica, 
+                    // pero 01 (Efectivo) es el estándar para PG si viene vacío.
+                    if (string.IsNullOrEmpty(formaPago)) formaPago = "01";
                 }
 
                 // 4. Crear estructura del cliente
@@ -736,6 +887,37 @@ namespace ContpaqiBridge.Services
                 int idCliente = 0;
                 int result = fAltaCteProv(ref idCliente, ref cliente);
                 
+                if (result == 0)
+                {
+                    // 6. Setear campos adicionales y asegurar RFC/Nombre
+                    fBuscaCteProv(codigo);
+                    fEditaCteProv();
+                    
+                    // Forzar RFC y Razón Social ya que a veces fAltaCteProv no los toma del struct correctamente
+                    fSetDatoCteProv("CRFC", rfc);
+                    fSetDatoCteProv("CRAZONSOCIAL", razonSocial);
+                    
+                    if (!string.IsNullOrEmpty(regimenFiscal))
+                    {
+                        _logger.LogInformation($"Seteando Régimen Fiscal (CREGIMENFISCAL): {regimenFiscal}");
+                        fSetDatoCteProv("CREGIMENFISCAL", regimenFiscal);
+                    }
+                    
+                    if (!string.IsNullOrEmpty(usoCFDI))
+                    {
+                        _logger.LogInformation($"Seteando Uso CFDI por defecto (CUSOCFDI): {usoCFDI}");
+                        fSetDatoCteProv("CUSOCFDI", usoCFDI);
+                    }
+
+                    if (!string.IsNullOrEmpty(formaPago))
+                    {
+                        _logger.LogInformation($"Seteando Forma de Pago por defecto (CMETODOPAG): {formaPago}");
+                        fSetDatoCteProv("CMETODOPAG", formaPago);
+                    }
+                    
+                    fGuardaCteProv();
+                }
+
                 CerrarEmpresa();
 
                 if (result != 0)
@@ -786,8 +968,27 @@ namespace ContpaqiBridge.Services
                 _logger.LogInformation($"fBuscaProducto('{codigo}') retornó: {existe}");
                 if (existe == 0)
                 {
+                    _logger.LogInformation($"Producto {codigo} ya existe. Verificando si requiere actualización de precio...");
+                    
+                    // Verificar si tiene precio 0
+                    StringBuilder sbPrecio = new StringBuilder(50);
+                    fLeeDatoProducto("CPRECIO1", sbPrecio, 50);
+                    double precioExistente = 0;
+                    double.TryParse(sbPrecio.ToString(), out precioExistente);
+                    
+                    if (precioExistente <= 0 && precio > 0)
+                    {
+                        _logger.LogInformation($"El producto {codigo} tiene precio 0. Actualizando a {precio}...");
+                        fEditaProducto();
+                        fSetDatoProducto("CPRECIO1", precio.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                        fSetDatoProducto("CPRECIO2", precio.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                        fSetDatoProducto("CPRECIO3", precio.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+                        fGuardaProducto();
+                        _logger.LogInformation($"Precio actualizado exitosamente para {codigo}.");
+                    }
+                    
                     CerrarEmpresa();
-                    return (true, "El producto ya existe en el catálogo", 0);
+                    return (true, $"El producto {codigo} ya existe", 0);
                 }
 
                 // 4. Usar flujo bajo nivel: fInsertaProducto -> fSetDatoProducto -> fGuardaProducto
@@ -855,26 +1056,22 @@ namespace ContpaqiBridge.Services
                 }
 
                 // Intentar setear unidad de medida usando H87 (Código SAT)
-                if (tipoProducto != 3) // Si es un producto físico
+                if (!string.IsNullOrEmpty(unidadMedida))
                 {
-                    _logger.LogInformation($"fSetDatoProducto('CCODIGOUNIDADBASE', '{unidadMedida}')");
-                    int resultUnidad = fSetDatoProducto("CCODIGOUNIDADBASE", unidadMedida);
-                    
-                    if (resultUnidad != 0)
+                    _logger.LogInformation($"fSetDatoProducto('CCOMNOMBREUNIDAD', '{unidadMedida}')");
+                    int resUnidad = fSetDatoProducto("CCOMNOMBREUNIDAD", unidadMedida);
+                    if (resUnidad != 0)
                     {
-                        string errorStr = GetUltimoError(resultUnidad);
-                        _logger.LogWarning($"Unidad '{unidadMedida}' rechazada ({resultUnidad} - {errorStr}). Intentando con '6' (ID Interno)...");
-                        
-                        // Fallback: Intentar con el ID interno como string ("6" = Pieza)
-                        resultUnidad = fSetDatoProducto("CCODIGOUNIDADBASE", "6");
-                        
-                        if (resultUnidad != 0)
+                        _logger.LogWarning($"Unidad '{unidadMedida}' rechazada por nombre. Intentando con CIDUNIDADBASE...");
+                        // Fallback: Intentar con el ID interno como string ("1" = Pieza, "6" = Servicio)
+                        resUnidad = fSetDatoProducto("CIDUNIDADBASE", "1"); 
+                        if (resUnidad != 0)
                         {
                             _logger.LogError("No se pudo asignar la unidad de medida. El producto podría fallar al facturar.");
                         }
                     }
                     
-                    if (resultUnidad == 0)
+                    if (resUnidad == 0)
                     {
                         fSetDatoProducto("CCODIGOUNIDADNOCONVERTIBLE", unidadMedida == "H87" ? "H87" : "6");
                     }

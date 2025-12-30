@@ -56,5 +56,20 @@ namespace ContpaqiBridge.Models
         /// País (default: México)
         /// </summary>
         public string Pais { get; set; } = "México";
+
+        /// <summary>
+        /// Régimen Fiscal (SAT)
+        /// </summary>
+        public string? RegimenFiscal { get; set; }
+
+        /// <summary>
+        /// Uso de CFDI por defecto para el cliente
+        /// </summary>
+        public string? UsoCFDI { get; set; }
+
+        /// <summary>
+        /// Forma de pago por defecto para el cliente (S.A.T.)
+        /// </summary>
+        public string? FormaPago { get; set; }
     }
 }

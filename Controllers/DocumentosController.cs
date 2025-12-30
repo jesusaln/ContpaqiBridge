@@ -85,5 +85,48 @@ namespace ContpaqiBridge.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Timbra una factura en CONTPAQi
+        /// </summary>
+        [HttpPost("timbrar")]
+        public IActionResult TimbrarFactura([FromBody] TimbrarRequest request)
+        {
+            try
+            {
+                _logger.LogInformation($"Timbrando factura {request.Serie}{request.Folio} para concepto {request.CodigoConcepto}");
+
+                if (string.IsNullOrEmpty(request.RutaEmpresa))
+                    return BadRequest(new { success = false, message = "RutaEmpresa es requerida" });
+
+                if (string.IsNullOrEmpty(request.CodigoConcepto))
+                    return BadRequest(new { success = false, message = "CodigoConcepto es requerido" });
+
+                if (request.Folio <= 0)
+                    return BadRequest(new { success = false, message = "Folio es requerido" });
+
+                var resultado = _sdkService.TimbrarFactura(
+                    request.RutaEmpresa,
+                    request.CodigoConcepto,
+                    request.Serie ?? "",
+                    request.Folio,
+                    request.PassCSD ?? ""
+                );
+
+                if (resultado.exito)
+                {
+                    return Ok(new { success = true, message = resultado.mensaje });
+                }
+                else
+                {
+                    return BadRequest(new { success = false, message = resultado.mensaje });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al timbrar factura");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 }

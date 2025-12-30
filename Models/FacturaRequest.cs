@@ -40,4 +40,13 @@ namespace ContpaqiBridge.Models
         /// </summary>
         public double Precio { get; set; }
     }
+
+    public class TimbrarRequest
+    {
+        public string RutaEmpresa { get; set; } = "";
+        public string CodigoConcepto { get; set; } = "";
+        public string Serie { get; set; } = "";
+        public double Folio { get; set; }
+        public string PassCSD { get; set; } = "";
+    }
 }
