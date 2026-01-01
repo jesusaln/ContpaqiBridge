@@ -144,6 +144,12 @@ namespace ContpaqiBridge.Services
         [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         private static extern int fLeeDatoUnidad(string aCampo, StringBuilder aValor, int aLen);
 
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fBuscaDocumento(string aCodConcepto, string aSerie, double aFolio);
+
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fEntregaxUDD(string aCodConcepto, string aSerie, double aFolio, int aTipoEntrega, string aRutaArchivo);
+
 
 
         // ============ Estructuras del SDK ============
@@ -802,6 +808,59 @@ namespace ContpaqiBridge.Services
                 _logger.LogError(ex, "Excepción durante el timbrado");
                 CerrarEmpresa();
                 return (false, $"Excepción: {ex.Message}");
+            }
+        }
+
+        public (bool exito, string mensaje, string xml) ObtenerXml(string rutaEmpresa, string codigoConcepto, string serie, double folio)
+        {
+            try
+            {
+                if (!InicializarSDK()) return (false, "No se pudo inicializar el SDK", "");
+                if (!AbrirEmpresa(rutaEmpresa)) return (false, $"No se pudo abrir la empresa: {GetUltimoError()}", "");
+
+                _logger.LogInformation($"Buscando documento para extraer XML: Concepto={codigoConcepto}, Serie={serie}, Folio={folio}");
+                int resBusca = fBuscaDocumento(codigoConcepto, serie, folio);
+                if (resBusca != 0)
+                {
+                    string err = GetUltimoError(resBusca);
+                    _logger.LogError($"Documento no encontrado para XML: {err}");
+                    CerrarEmpresa();
+                    return (false, $"Documento no encontrado: {err}", "");
+                }
+
+                string tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.xml");
+                _logger.LogInformation($"Exportando XML a archivo temporal: {tempPath}");
+                
+                // 1 = XML según el manual del SDK
+                int resEntrega = fEntregaxUDD(codigoConcepto, serie, folio, 1, tempPath);
+
+                if (resEntrega != 0)
+                {
+                    string err = GetUltimoError(resEntrega);
+                    _logger.LogError($"Error en fEntregaxUDD: {resEntrega} - {err}");
+                    CerrarEmpresa();
+                    return (false, $"Error exportando XML: {err}", "");
+                }
+
+                if (!File.Exists(tempPath))
+                {
+                    _logger.LogError("El archivo XML no fue creado por el SDK.");
+                    CerrarEmpresa();
+                    return (false, "El SDK no generó el archivo XML", "");
+                }
+
+                string xmlContent = File.ReadAllText(tempPath);
+                File.Delete(tempPath);
+                
+                _logger.LogInformation("XML extraído exitosamente.");
+                CerrarEmpresa();
+                return (true, "XML extraído", xmlContent);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener XML");
+                CerrarEmpresa();
+                return (false, ex.Message, "");
             }
         }
 

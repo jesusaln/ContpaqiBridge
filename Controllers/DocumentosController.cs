@@ -128,5 +128,32 @@ namespace ContpaqiBridge.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Obtiene el XML de una factura timbrada
+        /// </summary>
+        [HttpGet("xml")]
+        public IActionResult ObtenerXml([FromQuery] string rutaEmpresa, [FromQuery] string codigoConcepto, [FromQuery] string serie, [FromQuery] double folio)
+        {
+            try
+            {
+                _logger.LogInformation($"Solicitud de XML: Concepto={codigoConcepto}, Serie={serie}, Folio={folio}");
+                var resultado = _sdkService.ObtenerXml(rutaEmpresa, codigoConcepto, serie ?? "", folio);
+                
+                if (resultado.exito)
+                {
+                    return Ok(new { success = true, xml = resultado.xml });
+                }
+                else
+                {
+                    return BadRequest(new { success = false, message = resultado.mensaje });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en endpoint de XML");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 }

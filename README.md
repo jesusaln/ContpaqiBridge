@@ -1,96 +1,157 @@
-# Contpaqi Bridge API Documentation
+# ContpaqiBridge
 
-Esta API permite la creación automática de clientes, productos y facturas en CONTPAQi Comercial, incluyendo el timbrado con CFDI 4.0.
+Este proyecto es un puente (API REST) que conecta sistemas externos (como Laravel, VPS, WebApps) con el SDK de CONTPAQi Comercial, permitiendo facturar, crear clientes y productos de manera remota.
 
-## Endpoint Principal
+## 🚀 Instalación y Puesta en Marcha
 
-`POST /api/integracion/flujo-completo`
+### 1. Requisitos Previos
+- Servidor Windows con CONTPAQi Comercial instalado y funcioando.
+- Licencia de CONTPAQi activa.
+- .NET 6.0 SDK instalado.
+- ZeroTier instalado (para acceso remoto).
 
-## Estructura del JSON
+### 2. Configuración de Red (ZeroTier)
 
-El cuerpo de la solicitud debe contener los siguientes objetos principales:
+Para que tu servidor remoto (Laravel/VPS) vea esta máquina, usamos ZeroTier.
 
-### 1. Configuración General (`rutaEmpresa`)
-Ruta completa a la carpeta de la empresa en el servidor.
+1. **Obtener Node ID**: Ejecuta `zerotier-cli info` en PowerShell como Admin.
+2. **Unirse a la Red**: `zerotier-cli join <TU_ID_DE_RED>`.
+3. **Autorizar**: Ve a [ZeroTier Central](https://my.zerotier.com/), busca la red y autoriza a ambos dispositivos (Local y Remoto).
+4. **Abrir Firewall**:
+   Abre PowerShell como Administrador y ejecuta:
+   ```powershell
+   New-NetFirewallRule -DisplayName "Permitir ContpaqiBridge 5000" -Direction Inbound -LocalPort 5000 -Protocol TCP -Action Allow
+   ```
 
-```json
-"rutaEmpresa": "C:\\Compac\\Empresas\\adEJEMPLO"
+**Tu IP de ZeroTier detectada es**: `192.168.191.226`
+
+### 3. Ejecución
+Para iniciar el bridge escuchando en todas las interfaces:
+
+```powershell
+./start_bridge.ps1
+```
+o manualmente:
+```bash
+dotnet run
 ```
 
-### 2. Cliente (`cliente`)
-Datos del cliente. Si el cliente ya existe, solo se verifica su existencia (no se actualiza, excepto para PG).
+La URL base será: `http://192.168.191.226:5000`
 
-| Campo | Tipo | Obligatorio | Descripción |
-| :--- | :--- | :--- | :--- |
-| `codigo` | String | Sí | Código único del cliente. |
-| `razonSocial` | String | Sí | Nombre o Razón Social (sin Régimen Capital para CFDI 4.0). |
-| `rfc` | String | Sí | RFC válido. |
-| `codigoPostal` | String | Sí | CP Domicilio Fiscal. |
-| `regimenFiscal` | String | No* | Clave del Régimen Fiscal (ej. "601"). *Obligatorio si es nuevo.* |
-| `usoCFDI` | String | No* | Clave Uso CFDI por defecto (ej. "G03"). *Obligatorio si es nuevo.* |
-| `formaPago` | String | No | Clave Forma de Pago por defecto (ej. "99"). |
+---
 
-**Caso Especial: Público en General**
-Si envías `"codigo": "PG"`, el sistema forzará automáticamente:
-- `razonSocial`: "PUBLICO EN GENERAL"
-- `rfc`: "XAXX010101000"
-- `regimenFiscal`: "616"
-- `usoCFDI`: "S01"
-- `formaPago`: "01" (si no envías otra)
+## 📚 Documentación de API
 
-### 3. Producto (`producto`)
-Datos del producto/servicio.
+### Endpoint Principal (Flujo Completo)
+Este es el endpoint recomendado para integraciones. Crea el cliente y producto si no existen, y luego genera y timbra la factura en un solo paso.
 
-| Campo | Tipo | Obligatorio | Descripción |
-| :--- | :--- | :--- | :--- |
-| `codigo` | String | Sí | Código único del producto. |
-| `nombre` | String | Sí | Descripción del producto. |
-| `precio` | Decimal | Sí | Precio unitario antes de impuestos. **Si el producto ya existe con precio 0, se actualizará a este precio.** |
-| `claveSAT` | String | No | Clave de Producto/Servicio SAT (ej. "84111506"). |
-| `unidadMedida` | String | No | Nombre de la unidad (ej. "Pieza", "Servicio", "H87"). Defecto: "H87". |
+**POST** `/api/Integracion/flujo-completo`
 
-### 4. Factura (`factura`)
-Datos para la generación del documento.
-
-| Campo | Tipo | Obligatorio | Descripción |
-| :--- | :--- | :--- | :--- |
-| `codigoConcepto` | String | Sí | Código del concepto de factura en CONTPAQi (ej. "4"). |
-| `passCSD` | String | Sí* | Contraseña del certificado digital. *Si se omite, crea la factura pero NO timbra.* |
-| `cantidad` | Decimal | Sí | Cantidad de productos a facturar. |
-| `usoCFDI` | String | Sí | Clave Uso CFDI para esta factura (ej. "G03", "S01"). |
-| `metodoPago` | String | Sí | "PUE" (Pago en una sola exhibición) o "PPD" (Pago en parcialidades). |
-| `formaPago` | String | Sí | Clave Forma de Pago (ej. "01", "03", "99"). |
-| `observaciones` | String | No | Comentarios adicionales en la factura. |
-
-## Ejemplo Completo (JSON)
-
+**Ejemplo JSON:**
 ```json
 {
-    "rutaEmpresa": "C:\\Compac\\Empresas\\adJESUS_LOPEZ_NORIEGA",
-    "cliente": {
-        "codigo": "CTE001",
-        "razonSocial": "EMPRESA EJEMPLO",
-        "rfc": "XAXX010101000",
-        "codigoPostal": "83000",
-        "regimenFiscal": "616",
-        "usoCFDI": "S01",
-        "formaPago": "01"
-    },
-    "producto": {
-        "codigo": "FEE01",
-        "nombre": "HONORARIOS",
-        "precio": 500.00,
-        "claveSAT": "84111506",
-        "unidadMedida": "H87"
-    },
-    "factura": {
-        "codigoConcepto": "4",
-        "passCSD": "tu_contraseña_aqui",
-        "cantidad": 1,
-        "usoCFDI": "S01",
-        "metodoPago": "PUE",
-        "formaPago": "01",
-        "observaciones": "Factura generada desde API"
-    }
+  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
+  "cliente": {
+    "codigo": "CTE001",
+    "razonSocial": "Empresa Cliente S.A. de C.V.",
+    "rfc": "XAXX010101000",
+    "email": "cliente@email.com",
+    "calle": "Av. Principal 123",
+    "colonia": "Centro",
+    "codigoPostal": "44100",
+    "regimenFiscal": "601",
+    "usoCFDI": "G03",
+    "formaPago": "99"
+  },
+  "producto": {
+    "codigo": "SERV01",
+    "nombre": "Servicio de Mantenimiento",
+    "precio": 1500.00,
+    "claveSAT": "81101500",
+    "unidadMedida": "E48"
+  },
+  "factura": {
+    "codigoConcepto": "4CLIMAS",
+    "cantidad": 1,
+    "passCSD": "tu_contraseña_csd",
+    "usoCFDI": "G03",
+    "formaPago": "99",
+    "metodoPago": "PUE"
+  }
 }
 ```
+
+---
+
+### Endpoints Individuales
+
+Si prefieres realizar las operaciones paso a paso:
+
+#### 1. Crear Cliente
+**POST** `/api/Clientes`
+```json
+{
+  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
+  "codigo": "CTE001",
+  "razonSocial": "Cliente Prueba",
+  "rfc": "XAXX010101000",
+  "codigoPostal": "44100",
+  "regimenFiscal": "616",
+  "usoCFDI": "S01",
+  "formaPago": "01"
+}
+```
+
+#### 2. Crear Producto
+**POST** `/api/Productos`
+```json
+{
+  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
+  "codigo": "PROD01",
+  "nombre": "Producto 1",
+  "precio": 100.00,
+  "claveSAT": "01010101",
+  "unidadMedida": "H87"
+}
+```
+
+#### 3. Crear Factura (Sin timbrar)
+**POST** `/api/Documentos/factura`
+```json
+{
+  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
+  "codigoConcepto": "4CLIMAS",
+  "codigoCliente": "CTE001",
+  "productos": [
+    { "codigo": "PROD01", "cantidad": 1, "precio": 100.00 }
+  ]
+}
+```
+
+#### 4. Timbrar Factura
+**POST** `/api/Documentos/timbrar`
+```json
+{
+  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
+  "codigoConcepto": "4CLIMAS",
+  "folio": 1234,
+  "passCSD": "tu_contraseña"
+}
+```
+
+#### 5. Obtener XML de Factura
+Recupera el contenido XML de una factura ya timbrada.
+
+**GET** `/api/Documentos/xml`
+
+**Query Params:**
+- `rutaEmpresa`: Ruta de la empresa.
+- `codigoConcepto`: Código del concepto.
+- `serie`: Serie de la factura (opcional).
+- `folio`: Folio de la factura.
+
+Respuesta: `{"success": true, "xml": "<xml>...</xml>"}`
+
+#### 6. Verificar Estado
+**GET** `/api/Status`
+Respuesta: `{"status": "Online", "message": "Connected to CONTPAQi SDK"}`
