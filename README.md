@@ -1,157 +1,90 @@
-# ContpaqiBridge
+# ContpaqiBridge 🚀
 
-Este proyecto es un puente (API REST) que conecta sistemas externos (como Laravel, VPS, WebApps) con el SDK de CONTPAQi Comercial, permitiendo facturar, crear clientes y productos de manera remota.
+Este proyecto es un puente (API REST) que conecta sistemas externos (como Laravel en VPS, Hostinger o WebApps) con el SDK de CONTPAQi Comercial LOCAL. Permite facturar, crear clientes, productos y extraer XMLs de manera remota a través de internet.
 
-## 🚀 Instalación y Puesta en Marcha
+## 🛠️ Instalación y Puesta en Marcha
 
 ### 1. Requisitos Previos
-- Servidor Windows con CONTPAQi Comercial instalado y funcioando.
-- Licencia de CONTPAQi activa.
-- .NET 6.0 SDK instalado.
-- ZeroTier instalado (para acceso remoto).
+- Servidor Windows con CONTPAQi Comercial instalado y funcionando.
+- .NET 6.0 SDK (Runtime x86 importante).
+- ZeroTier instalado para el tunel VPN.
 
-### 2. Configuración de Red (ZeroTier)
+### 2. Configuración de Red (Acceso Remoto)
 
-Para que tu servidor remoto (Laravel/VPS) vea esta máquina, usamos ZeroTier.
+Para que tu sistema de ventas (ej. Laravel en VPS) se comunique con esta máquina local:
 
-1. **Obtener Node ID**: Ejecuta `zerotier-cli info` en PowerShell como Admin.
-2. **Unirse a la Red**: `zerotier-cli join <TU_ID_DE_RED>`.
-3. **Autorizar**: Ve a [ZeroTier Central](https://my.zerotier.com/), busca la red y autoriza a ambos dispositivos (Local y Remoto).
-4. **Abrir Firewall**:
-   Abre PowerShell como Administrador y ejecuta:
+1. **ZeroTier**:
+   - Instala ZeroTier en esta máquina y en tu VPS.
+   - Únete a la misma red en ambos lados.
+   - Autoriza los nodos en [my.zerotier.com](https://my.zerotier.com/).
+2. **Abrir Puerto 5000**:
+   Ejecuta esto en PowerShell como Administrador:
    ```powershell
-   New-NetFirewallRule -DisplayName "Permitir ContpaqiBridge 5000" -Direction Inbound -LocalPort 5000 -Protocol TCP -Action Allow
+   New-NetFirewallRule -DisplayName "ContpaqiBridge" -Direction Inbound -LocalPort 5000 -Protocol TCP -Action Allow
    ```
-
-**Tu IP de ZeroTier detectada es**: `192.168.191.226`
+3. **Tu IP Remota**: `192.168.191.226`
 
 ### 3. Ejecución
-Para iniciar el bridge escuchando en todas las interfaces:
-
+Usa el script automatizado que limpia procesos previos e inicia el bridge:
 ```powershell
 ./start_bridge.ps1
 ```
-o manualmente:
-```bash
-dotnet run
-```
-
-La URL base será: `http://192.168.191.226:5000`
 
 ---
 
 ## 📚 Documentación de API
 
-### Endpoint Principal (Flujo Completo)
-Este es el endpoint recomendado para integraciones. Crea el cliente y producto si no existen, y luego genera y timbra la factura en un solo paso.
+### 📄 Obtener XML de Factura
+Recupera el contenido XML de una factura ya timbrada. El bridge utiliza funciones de alto nivel del SDK para extraer el archivo directamente desde la carpeta interna `XML_SDK` de la empresa.
 
-**POST** `/api/Integracion/flujo-completo`
+**Endpoint:** `GET /api/Documentos/xml`
 
-**Ejemplo JSON:**
+| Parámetro | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `rutaEmpresa` | string | Ruta completa (C:\Compac\Empresas\...) |
+| `codigoConcepto`| string | Código del concepto (ej: "4") |
+| `serie` | string | (Opcional) Serie de la factura |
+| `folio` | double | Folio de la factura |
+
+**Ejemplo:**
+`http://192.168.191.226:5000/api/Documentos/xml?rutaEmpresa=C:\Compac\Empresas\adEmpresa&codigoConcepto=4&serie=AV&folio=1401`
+
+**Respuesta:**
 ```json
 {
-  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
-  "cliente": {
-    "codigo": "CTE001",
-    "razonSocial": "Empresa Cliente S.A. de C.V.",
-    "rfc": "XAXX010101000",
-    "email": "cliente@email.com",
-    "calle": "Av. Principal 123",
-    "colonia": "Centro",
-    "codigoPostal": "44100",
-    "regimenFiscal": "601",
-    "usoCFDI": "G03",
-    "formaPago": "99"
-  },
-  "producto": {
-    "codigo": "SERV01",
-    "nombre": "Servicio de Mantenimiento",
-    "precio": 1500.00,
-    "claveSAT": "81101500",
-    "unidadMedida": "E48"
-  },
-  "factura": {
-    "codigoConcepto": "4CLIMAS",
-    "cantidad": 1,
-    "passCSD": "tu_contraseña_csd",
-    "usoCFDI": "G03",
-    "formaPago": "99",
-    "metodoPago": "PUE"
-  }
+  "success": true,
+  "mensaje": "XML obtenido correctamente",
+  "xml": "<?xml version=\"1.0\" ... </cfdi:Comprobante>"
 }
 ```
 
 ---
 
-### Endpoints Individuales
+### 📝 Creación y Timbrado (Flujo Completo)
+Envía un solo JSON y el bridge se encarga de:
+1. Crear el cliente (si no existe).
+2. Crear el producto (si no existe).
+3. Generar la factura.
+4. Timbrar el CFDI.
 
-Si prefieres realizar las operaciones paso a paso:
+**Endpoint:** `POST /api/Integracion/flujo-completo`
 
-#### 1. Crear Cliente
-**POST** `/api/Clientes`
 ```json
 {
   "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
-  "codigo": "CTE001",
-  "razonSocial": "Cliente Prueba",
-  "rfc": "XAXX010101000",
-  "codigoPostal": "44100",
-  "regimenFiscal": "616",
-  "usoCFDI": "S01",
-  "formaPago": "01"
+  "cliente": { "codigo": "CTE01", "razonSocial": "Juan Perez", "rfc": "XAXX010101000", "regimenFiscal": "616", "usoCFDI": "S01" },
+  "producto": { "codigo": "001", "nombre": "Suscripción", "precio": 100.00, "claveSAT": "01010101" },
+  "factura": { "codigoConcepto": "4", "passCSD": "tu_password", "metodoPago": "PUE", "formaPago": "99" }
 }
 ```
 
-#### 2. Crear Producto
-**POST** `/api/Productos`
-```json
-{
-  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
-  "codigo": "PROD01",
-  "nombre": "Producto 1",
-  "precio": 100.00,
-  "claveSAT": "01010101",
-  "unidadMedida": "H87"
-}
-```
+---
 
-#### 3. Crear Factura (Sin timbrar)
-**POST** `/api/Documentos/factura`
-```json
-{
-  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
-  "codigoConcepto": "4CLIMAS",
-  "codigoCliente": "CTE001",
-  "productos": [
-    { "codigo": "PROD01", "cantidad": 1, "precio": 100.00 }
-  ]
-}
-```
+## 🔧 Solución de Problemas (Troubleshooting)
 
-#### 4. Timbrar Factura
-**POST** `/api/Documentos/timbrar`
-```json
-{
-  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
-  "codigoConcepto": "4CLIMAS",
-  "folio": 1234,
-  "passCSD": "tu_contraseña"
-}
-```
+- **Error 3 (CACSql.dll)**: El SDK requiere que el Bridge corra en modo `x86`. Si ves este error, asegúrate de que el PATH incluya la carpeta de Comercial y de inicializar el Bridge con `./start_bridge.ps1`.
+- **Fatal Error 0xC0000005**: Suele suceder al pasar estructuras mal alineadas. El sistema de XML ahora usa funciones de "Alto Nivel" para evitar esto.
+- **Archivo XML no encontrado**: Algunos SDKs guardan el XML en la subcarpeta `XML_SDK` dentro de la empresa. El bridge ya escanea esa carpeta automáticamente.
 
-#### 5. Obtener XML de Factura
-Recupera el contenido XML de una factura ya timbrada.
-
-**GET** `/api/Documentos/xml`
-
-**Query Params:**
-- `rutaEmpresa`: Ruta de la empresa.
-- `codigoConcepto`: Código del concepto.
-- `serie`: Serie de la factura (opcional).
-- `folio`: Folio de la factura.
-
-Respuesta: `{"success": true, "xml": "<xml>...</xml>"}`
-
-#### 6. Verificar Estado
-**GET** `/api/Status`
-Respuesta: `{"status": "Online", "message": "Connected to CONTPAQi SDK"}`
+---
+*Desarrollado para la integración Laravel-Contpaqi por Antigravity AI.*

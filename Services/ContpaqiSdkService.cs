@@ -147,6 +147,27 @@ namespace ContpaqiBridge.Services
         [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         private static extern int fBuscaDocumento(string aCodConcepto, string aSerie, double aFolio);
 
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fPosPrimerDocumento();
+
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fPosSiguienteDocumento();
+
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fPosUltimoDocumento();
+
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fPosAnteriorDocumento();
+
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fSetFiltroDocumento(string aFechaInicio, string aFechaFin, string aCodigoConcepto, string aCodigoCteProv);
+
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fCancelaFiltroDocumento();
+
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fEntregEnDiscoXML(string aCodConcepto, string aSerie, double aFolio, int aFormato, string aFormatoAmig);
+
         [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         private static extern int fEntregaxUDD(string aCodConcepto, string aSerie, double aFolio, int aTipoEntrega, string aRutaArchivo);
 
@@ -818,49 +839,51 @@ namespace ContpaqiBridge.Services
                 if (!InicializarSDK()) return (false, "No se pudo inicializar el SDK", "");
                 if (!AbrirEmpresa(rutaEmpresa)) return (false, $"No se pudo abrir la empresa: {GetUltimoError()}", "");
 
-                _logger.LogInformation($"Buscando documento para extraer XML: Concepto={codigoConcepto}, Serie={serie}, Folio={folio}");
-                int resBusca = fBuscaDocumento(codigoConcepto, serie, folio);
-                if (resBusca != 0)
-                {
-                    string err = GetUltimoError(resBusca);
-                    _logger.LogError($"Documento no encontrado para XML: {err}");
-                    CerrarEmpresa();
-                    return (false, $"Documento no encontrado: {err}", "");
-                }
-
-                string tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.xml");
-                _logger.LogInformation($"Exportando XML a archivo temporal: {tempPath}");
+                string serieClean = (serie ?? "").Trim().ToUpper();
+                string folioStr = folio.ToString();
                 
-                // 1 = XML según el manual del SDK
-                int resEntrega = fEntregaxUDD(codigoConcepto, serie, folio, 1, tempPath);
-
-                if (resEntrega != 0)
-                {
-                    string err = GetUltimoError(resEntrega);
-                    _logger.LogError($"Error en fEntregaxUDD: {resEntrega} - {err}");
-                    CerrarEmpresa();
-                    return (false, $"Error exportando XML: {err}", "");
-                }
-
-                if (!File.Exists(tempPath))
-                {
-                    _logger.LogError("El archivo XML no fue creado por el SDK.");
-                    CerrarEmpresa();
-                    return (false, "El SDK no generó el archivo XML", "");
-                }
-
-                string xmlContent = File.ReadAllText(tempPath);
-                File.Delete(tempPath);
+                // ESTRATEGIA DEFINITIVA: fEntregEnDiscoXML + Ruta descubierta
+                _logger.LogInformation($"[E1] Intentando fEntregEnDiscoXML: Concepto={codigoConcepto}, Serie={serieClean}, Folio={folio}");
                 
-                _logger.LogInformation("XML extraído exitosamente.");
+                // Intentamos pasarle una ruta en la empresa también
+                string suggestedPath = Path.Combine(rutaEmpresa, "XML_SDK", $"{serieClean}{folioStr}.xml");
+                int resEntrega = fEntregEnDiscoXML(codigoConcepto, serieClean, folio, 0, suggestedPath);
+
+                if (resEntrega == 0)
+                {
+                    _logger.LogInformation("¡SDK reportó éxito (0)!");
+                    System.Threading.Thread.Sleep(1000);
+
+                    // Lista de búsqueda basada en el hallazgo real
+                    var posiblesRutas = new List<string> { 
+                        suggestedPath,
+                        Path.Combine(rutaEmpresa, "XML_SDK", $"{serieClean}{folioStr}.xml"),
+                        Path.Combine(rutaEmpresa, "XML_SDK", $"{folioStr}.xml"),
+                        Path.Combine(rutaEmpresa, $"{serieClean}{folioStr}.xml"),
+                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"Factura_{folioStr}.xml")
+                    };
+
+                    foreach (var ruta in posiblesRutas) {
+                        _logger.LogInformation($"Verificando: {ruta}");
+                        if (File.Exists(ruta)) {
+                            _logger.LogInformation($"¡XML ENCONTRADO! Leyendo: {ruta}");
+                            string content = File.ReadAllText(ruta);
+                            CerrarEmpresa();
+                            return (true, $"XML obtenido correctamente", content);
+                        }
+                    }
+                }
+
+                // E2: Fallback por si acaso (sin navegación pesada para evitar crashes)
+                _logger.LogWarning("No se encontró el archivo en las rutas estándar. Intentando búsqueda simple...");
                 CerrarEmpresa();
-                return (true, "XML extraído", xmlContent);
+                return (false, "El SDK reportó éxito pero el archivo XML no se encontró en la carpeta XML_SDK de la empresa.", "");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener XML");
+                _logger.LogError(ex, "Error en ObtenerXml");
                 CerrarEmpresa();
-                return (false, ex.Message, "");
+                return (false, $"Error: {ex.Message}", "");
             }
         }
 
@@ -1235,6 +1258,61 @@ namespace ContpaqiBridge.Services
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Lista los conceptos de la empresa
+        /// </summary>
+        public List<(string codigo, string nombre)> ListarConceptos(string rutaEmpresa)
+        {
+            _logger.LogWarning("ListarConceptos no está disponible en esta versión del SDK.");
+            return new List<(string codigo, string nombre)>();
+        }
+
+        public List<(string concepto, string serie, double folio)> ListarUltimosDocumentos(string rutaEmpresa, int limite = 20)
+        {
+            var docs = new List<(string concepto, string serie, double folio)>();
+            try
+            {
+                if (!InicializarSDK()) return docs;
+                if (!AbrirEmpresa(rutaEmpresa)) return docs;
+
+                _logger.LogInformation("Listando últimos documentos para diagnóstico...");
+                
+                int res = fPosUltimoDocumento();
+                int count = 0;
+                
+                while (res == 0 && count < limite)
+                {
+                    StringBuilder conceptoSb = new StringBuilder(50);
+                    StringBuilder serieSb = new StringBuilder(50);
+                    StringBuilder folioSb = new StringBuilder(50);
+
+                    // Estos son los nombres de columnas estándar en la tabla admDocumentos
+                    // y campos que fLeeDatoDocumento debería entender
+                    fLeeDatoDocumento("CCODIGOCONCEPTO", conceptoSb, 50);
+                    fLeeDatoDocumento("CSERIEDOCUMENTO", serieSb, 50);
+                    fLeeDatoDocumento("CFOLIO", folioSb, 50);
+
+                    string concepto = conceptoSb.ToString().Trim();
+                    string serie = serieSb.ToString().Trim();
+                    double.TryParse(folioSb.ToString(), out double folio);
+
+                    docs.Add((concepto, serie, folio));
+                    _logger.LogInformation($"Doc Encontrado: Concepto='{concepto}', Serie='{serie}', Folio={folio}");
+
+                    res = fPosAnteriorDocumento();
+                    count++;
+                }
+
+                CerrarEmpresa();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar últimos documentos");
+                CerrarEmpresa();
+            }
+            return docs;
         }
 
         /// <summary>

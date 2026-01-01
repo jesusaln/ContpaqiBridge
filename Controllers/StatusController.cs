@@ -101,6 +101,40 @@ namespace ContpaqiBridge.Controllers
             }
         }
 
+        [HttpGet("conceptos")]
+        public IActionResult GetConceptos([FromQuery] string rutaEmpresa)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(rutaEmpresa))
+                    return BadRequest("rutaEmpresa es requerida");
+
+                var conceptos = _sdkService.ListarConceptos(rutaEmpresa);
+                return Ok(new { success = true, conceptos = conceptos.Select(c => new { codigo = c.codigo, nombre = c.nombre }) });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpGet("documentos")]
+        public IActionResult GetDocumentos([FromQuery] string rutaEmpresa)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(rutaEmpresa))
+                    return BadRequest("rutaEmpresa es requerida");
+
+                var docs = _sdkService.ListarUltimosDocumentos(rutaEmpresa);
+                return Ok(new { success = true, documentos = docs.Select(d => new { concepto = d.concepto, serie = d.serie, folio = d.folio }) });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
         public class ConnectRequest
         {
             public string CompanyPath { get; set; }
