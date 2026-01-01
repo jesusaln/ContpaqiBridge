@@ -155,5 +155,93 @@ namespace ContpaqiBridge.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Cancela un documento CFDI 4.0 ante el SAT
+        /// </summary>
+        [HttpPost("cancelar")]
+        public IActionResult CancelarDocumento([FromBody] CancelarDocumentoRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request.CodigoConcepto))
+                    return BadRequest(new { success = false, message = "CodigoConcepto es requerido" });
+
+                _logger.LogInformation($"Solicitud de cancelación: Serie={request.Serie}, Folio={request.Folio}, Motivo={request.MotivoCancelacion}");
+                
+                var resultado = _sdkService.CancelarDocumento(
+                    request.RutaEmpresa,
+                    request.CodigoConcepto,
+                    request.Serie ?? "",
+                    request.Folio,
+                    request.MotivoCancelacion ?? "02",
+                    request.PassCSD ?? "",
+                    request.UuidSustitucion
+                );
+
+                if (resultado.exito)
+                {
+                    return Ok(new { 
+                        success = true, 
+                        message = resultado.mensaje,
+                        acuse = resultado.acuse 
+                    });
+                }
+                else
+                {
+                    return BadRequest(new { success = false, message = resultado.mensaje });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cancelar documento");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Cancela un documento administrativamente (solo en CONTPAQi, no afecta SAT)
+        /// </summary>
+        [HttpPost("cancelar-admin")]
+        public IActionResult CancelarDocumentoAdmin([FromBody] CancelarAdminRequest request)
+        {
+            try
+            {
+                _logger.LogInformation($"Solicitud de cancelación administrativa: Serie={request.Serie}, Folio={request.Folio}");
+                
+                var resultado = _sdkService.CancelarDocumentoAdministrativamente(
+                    request.RutaEmpresa,
+                    request.CodigoConcepto,
+                    request.Serie ?? "",
+                    request.Folio
+                );
+
+                return Ok(new { success = resultado.exito, message = resultado.mensaje });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cancelar documento administrativamente");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+    }
+
+    public class CancelarDocumentoRequest
+    {
+        public string RutaEmpresa { get; set; } = "";
+        public string CodigoConcepto { get; set; } = "";
+        public string Serie { get; set; } = "";
+        public double Folio { get; set; }
+        public string MotivoCancelacion { get; set; } = "02";
+        public string PassCSD { get; set; } = "";
+        public string? UuidSustitucion { get; set; }
+    }
+
+    public class CancelarAdminRequest
+    {
+        public string RutaEmpresa { get; set; } = "";
+        public string CodigoConcepto { get; set; } = "";
+        public string Serie { get; set; } = "";
+        public double Folio { get; set; }
     }
 }

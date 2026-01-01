@@ -171,6 +171,16 @@ namespace ContpaqiBridge.Services
         [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         private static extern int fEntregaxUDD(string aCodConcepto, string aSerie, double aFolio, int aTipoEntrega, string aRutaArchivo);
 
+        // Cancelación CFDI 4.0 - Requiere documento posicionado previamente
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fCancelaDocumentoConMotivo(string aMotivoCancelacion, string aUUIDReemplaza);
+
+        // Cancelación Administrativa (solo en CONTPAQi, no afecta SAT)
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fCancelaDocumentoAdministrativamente();
+
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fTimbraComplementoPago(string aRutaINI, StringBuilder aAcuse, int aLongitud);
 
 
         // ============ Estructuras del SDK ============
@@ -884,6 +894,222 @@ namespace ContpaqiBridge.Services
                 _logger.LogError(ex, "Error en ObtenerXml");
                 CerrarEmpresa();
                 return (false, $"Error: {ex.Message}", "");
+            }
+        }
+
+        /// <summary>
+        /// Cancela un documento CFDI 4.0 ante el SAT.
+        /// Requiere que el documento esté posicionado previamente.
+        /// </summary>
+        /// <param name="motivoCancelacion">01=Con relación, 02=Sin relación, 03=No se realizó, 04=Factura global</param>
+        /// <param name="uuidSustitucion">Solo requerido si motivoCancelacion es "01"</param>
+        public (bool exito, string mensaje, string acuse) CancelarDocumento(
+            string rutaEmpresa, 
+            string codigoConcepto, 
+            string serie, 
+            double folio, 
+            string motivoCancelacion, 
+            string passCSD,
+            string uuidSustitucion = "")
+        {
+            try
+            {
+                _logger.LogInformation($"Iniciando cancelación: Concepto={codigoConcepto}, Serie={serie}, Folio={folio}, Motivo={motivoCancelacion}");
+                
+                if (!InicializarSDK()) 
+                    return (false, "No se pudo inicializar el SDK", "");
+                    
+                if (!AbrirEmpresa(rutaEmpresa)) 
+                    return (false, $"No se pudo abrir la empresa: {GetUltimoError()}", "");
+
+                string serieClean = (serie ?? "").Trim().ToUpper();
+
+                // 1. Posicionar el documento
+                _logger.LogInformation("Buscando documento para cancelar...");
+                int resBusca = fBuscaDocumento(codigoConcepto, serieClean, folio);
+                
+                if (resBusca != 0)
+                {
+                    _logger.LogWarning($"fBuscaDocumento falló ({resBusca}). Intentando con filtros...");
+                    fCancelaFiltroDocumento();
+                    fSetFiltroDocumento("01/01/2020", "12/31/2030", codigoConcepto, "");
+                    int resNav = fPosPrimerDocumento();
+                    bool encontrado = false;
+                    int intentos = 0;
+                    
+                    while (resNav == 0 && !encontrado && intentos < 500)
+                    {
+                        StringBuilder sSb = new StringBuilder(50);
+                        StringBuilder fSb = new StringBuilder(50);
+                        fLeeDatoDocumento("CSERIEDOCUMENTO", sSb, 50);
+                        fLeeDatoDocumento("CFOLIO", fSb, 50);
+                        
+                        string s = sSb.ToString().Trim().ToUpper();
+                        double.TryParse(fSb.ToString(), out double f);
+                        
+                        if (s == serieClean && Math.Abs(f - folio) < 0.1)
+                        {
+                            encontrado = true;
+                            _logger.LogInformation("Documento encontrado mediante filtro.");
+                        }
+                        else
+                        {
+                            resNav = fPosSiguienteDocumento();
+                            intentos++;
+                        }
+                    }
+                    fCancelaFiltroDocumento();
+                    
+                    if (!encontrado)
+                    {
+                        CerrarEmpresa();
+                        return (false, "Documento no encontrado en el sistema. Verifique concepto, serie y folio.", "");
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Documento posicionado con fBuscaDocumento.");
+                }
+
+                // 2. Validar motivo de cancelación
+                var motivosValidos = new[] { "01", "02", "03", "04" };
+                if (!motivosValidos.Contains(motivoCancelacion))
+                {
+                    CerrarEmpresa();
+                    return (false, $"Motivo de cancelación inválido: {motivoCancelacion}. Use 01, 02, 03 o 04.", "");
+                }
+
+                // Si motivo es "01", debe tener UUID de sustitución
+                if (motivoCancelacion == "01" && string.IsNullOrWhiteSpace(uuidSustitucion))
+                {
+                    CerrarEmpresa();
+                    return (false, "El motivo 01 requiere un UUID de sustitución.", "");
+                }
+
+                // Si no es "01", limpiar UUID de sustitución
+                if (motivoCancelacion != "01")
+                {
+                    uuidSustitucion = "";
+                }
+
+                // 3. Intentar cancelar
+                _logger.LogInformation($"Llamando a fCancelaDocumentoConMotivo('{motivoCancelacion}', '{uuidSustitucion}')...");
+                int resCancela = fCancelaDocumentoConMotivo(motivoCancelacion, uuidSustitucion ?? "");
+
+                if (resCancela != 0)
+                {
+                    string errorMsg = GetUltimoError(resCancela);
+                    _logger.LogError($"Error al cancelar: {errorMsg}");
+                    CerrarEmpresa();
+                    return (false, $"Error al cancelar documento: {errorMsg}", "");
+                }
+
+                _logger.LogInformation("¡Documento cancelado exitosamente!");
+                
+                // 4. Intentar obtener el acuse (si hay un XML de cancelación)
+                string acuse = "";
+                string acusePath = Path.Combine(rutaEmpresa, "XML_SDK", $"{serieClean}{folio}_Cancelacion.xml");
+                if (File.Exists(acusePath))
+                {
+                    acuse = File.ReadAllText(acusePath);
+                    _logger.LogInformation($"Acuse encontrado en: {acusePath}");
+                }
+
+                CerrarEmpresa();
+                return (true, "Documento cancelado exitosamente ante el SAT.", acuse);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Excepción al cancelar documento");
+                CerrarEmpresa();
+                return (false, $"Excepción: {ex.Message}", "");
+            }
+        }
+
+        /// <summary>
+        /// Cancela un documento administrativamente (solo en CONTPAQi, NO afecta al SAT).
+        /// Útil para anular documentos sin enviar cancelación al SAT.
+        /// </summary>
+        public (bool exito, string mensaje) CancelarDocumentoAdministrativamente(
+            string rutaEmpresa, 
+            string codigoConcepto, 
+            string serie, 
+            double folio)
+        {
+            try
+            {
+                _logger.LogInformation($"Iniciando cancelación administrativa: Concepto={codigoConcepto}, Serie={serie}, Folio={folio}");
+                
+                if (!InicializarSDK()) 
+                    return (false, "No se pudo inicializar el SDK");
+                    
+                if (!AbrirEmpresa(rutaEmpresa)) 
+                    return (false, $"No se pudo abrir la empresa: {GetUltimoError()}");
+
+                string serieClean = (serie ?? "").Trim().ToUpper();
+
+                // 1. Posicionar el documento
+                int resBusca = fBuscaDocumento(codigoConcepto, serieClean, folio);
+                
+                if (resBusca != 0)
+                {
+                    // Intentar con filtros
+                    fCancelaFiltroDocumento();
+                    fSetFiltroDocumento("01/01/2020", "12/31/2030", codigoConcepto, "");
+                    int resNav = fPosPrimerDocumento();
+                    bool encontrado = false;
+                    int intentos = 0;
+                    
+                    while (resNav == 0 && !encontrado && intentos < 500)
+                    {
+                        StringBuilder sSb = new StringBuilder(50);
+                        StringBuilder fSb = new StringBuilder(50);
+                        fLeeDatoDocumento("CSERIEDOCUMENTO", sSb, 50);
+                        fLeeDatoDocumento("CFOLIO", fSb, 50);
+                        
+                        string s = sSb.ToString().Trim().ToUpper();
+                        double.TryParse(fSb.ToString(), out double f);
+                        
+                        if (s == serieClean && Math.Abs(f - folio) < 0.1)
+                        {
+                            encontrado = true;
+                        }
+                        else
+                        {
+                            resNav = fPosSiguienteDocumento();
+                            intentos++;
+                        }
+                    }
+                    fCancelaFiltroDocumento();
+                    
+                    if (!encontrado)
+                    {
+                        CerrarEmpresa();
+                        return (false, "Documento no encontrado.");
+                    }
+                }
+
+                // 2. Cancelar administrativamente
+                _logger.LogInformation("Llamando a fCancelaDocumentoAdministrativamente()...");
+                int resCancela = fCancelaDocumentoAdministrativamente();
+
+                if (resCancela != 0)
+                {
+                    string errorMsg = GetUltimoError(resCancela);
+                    _logger.LogError($"Error al cancelar administrativamente: {errorMsg}");
+                    CerrarEmpresa();
+                    return (false, $"Error: {errorMsg}");
+                }
+
+                _logger.LogInformation("¡Documento cancelado administrativamente!");
+                CerrarEmpresa();
+                return (true, "Documento cancelado administrativamente (solo en CONTPAQi, no afecta SAT).");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Excepción al cancelar documento administrativamente");
+                CerrarEmpresa();
+                return (false, $"Excepción: {ex.Message}");
             }
         }
 

@@ -77,6 +77,47 @@ Envía un solo JSON y el bridge se encarga de:
   "factura": { "codigoConcepto": "4", "passCSD": "tu_password", "metodoPago": "PUE", "formaPago": "99" }
 }
 ```
+---
+
+### ❌ Cancelar Factura ante el SAT
+Cancela un documento CFDI 4.0 con motivo oficial del SAT.
+
+**Endpoint:** `POST /api/Documentos/cancelar`
+
+| Motivo | Descripción |
+| :--- | :--- |
+| `01` | Con errores CON relación (requiere `uuidSustitucion`) |
+| `02` | Con errores SIN relación |
+| `03` | No se llevó a cabo la operación |
+| `04` | Operación en factura global |
+
+```json
+{
+  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
+  "codigoConcepto": "4",
+  "serie": "AV",
+  "folio": 1401,
+  "motivoCancelacion": "02",
+  "passCSD": "tu_password",
+  "uuidSustitucion": ""
+}
+```
+
+---
+
+### 🗑️ Cancelar Solo en CONTPAQi (Administrativa)
+Cancela el documento localmente sin afectar al SAT. Útil para errores internos.
+
+**Endpoint:** `POST /api/Documentos/cancelar-admin`
+
+```json
+{
+  "rutaEmpresa": "C:\\Compac\\Empresas\\adTU_EMPRESA",
+  "codigoConcepto": "4",
+  "serie": "AV",
+  "folio": 1401
+}
+```
 
 ---
 

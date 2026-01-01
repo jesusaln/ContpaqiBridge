@@ -23,5 +23,7 @@ namespace ContpaqiBridge.Services
         (bool exito, string mensaje, string xml) ObtenerXml(string rutaEmpresa, string codigoConcepto, string serie, double folio);
         List<(string codigo, string nombre)> ListarConceptos(string rutaEmpresa);
         List<(string concepto, string serie, double folio)> ListarUltimosDocumentos(string rutaEmpresa, int limite = 20);
+        (bool exito, string mensaje, string acuse) CancelarDocumento(string rutaEmpresa, string codigoConcepto, string serie, double folio, string motivoCancelacion, string passCSD, string uuidSustitucion = "");
+        (bool exito, string mensaje) CancelarDocumentoAdministrativamente(string rutaEmpresa, string codigoConcepto, string serie, double folio);
     }
 }
