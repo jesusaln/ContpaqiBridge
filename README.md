@@ -103,6 +103,36 @@ Cancela un documento CFDI 4.0 con motivo oficial del SAT.
 }
 ```
 
+**Ejemplo Laravel:**
+```php
+// En tu Controller de Laravel
+use Illuminate\Support\Facades\Http;
+
+public function cancelarFactura(Request $request)
+{
+    $response = Http::post('http://192.168.191.226:5000/api/Documentos/cancelar', [
+        'rutaEmpresa' => 'C:\\Compac\\Empresas\\adTU_EMPRESA',
+        'codigoConcepto' => '4',
+        'serie' => $request->serie,
+        'folio' => $request->folio,
+        'motivoCancelacion' => $request->motivo ?? '02', // 01, 02, 03, 04
+        'passCSD' => config('contpaqi.csd_password'),
+        'uuidSustitucion' => $request->uuid_sustitucion ?? '',
+    ]);
+
+    if ($response->successful() && $response->json('success')) {
+        return response()->json([
+            'message' => 'Factura cancelada exitosamente',
+            'acuse' => $response->json('acuse'),
+        ]);
+    }
+
+    return response()->json([
+        'error' => $response->json('message'),
+    ], 400);
+}
+```
+
 ---
 
 ### 🗑️ Cancelar Solo en CONTPAQi (Administrativa)
@@ -117,6 +147,16 @@ Cancela el documento localmente sin afectar al SAT. Útil para errores internos.
   "serie": "AV",
   "folio": 1401
 }
+```
+
+**Ejemplo Laravel:**
+```php
+$response = Http::post('http://192.168.191.226:5000/api/Documentos/cancelar-admin', [
+    'rutaEmpresa' => 'C:\\Compac\\Empresas\\adTU_EMPRESA',
+    'codigoConcepto' => '4',
+    'serie' => $serie,
+    'folio' => $folio,
+]);
 ```
 
 ---

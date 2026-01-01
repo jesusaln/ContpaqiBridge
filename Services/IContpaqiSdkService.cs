@@ -22,7 +22,7 @@ namespace ContpaqiBridge.Services
         (bool exito, string mensaje) TimbrarFactura(string rutaEmpresa, string codigoConcepto, string serie, double folio, string passCSD);
         (bool exito, string mensaje, string xml) ObtenerXml(string rutaEmpresa, string codigoConcepto, string serie, double folio);
         List<(string codigo, string nombre)> ListarConceptos(string rutaEmpresa);
-        List<(string concepto, string serie, double folio)> ListarUltimosDocumentos(string rutaEmpresa, int limite = 20);
+        List<Dictionary<string, object>> ListarUltimosDocumentos(string rutaEmpresa, int cantidad = 10);
         (bool exito, string mensaje, string acuse) CancelarDocumento(string rutaEmpresa, string codigoConcepto, string serie, double folio, string motivoCancelacion, string passCSD, string uuidSustitucion = "");
         (bool exito, string mensaje) CancelarDocumentoAdministrativamente(string rutaEmpresa, string codigoConcepto, string serie, double folio);
     }

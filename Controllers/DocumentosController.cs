@@ -224,6 +224,28 @@ namespace ContpaqiBridge.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Lista los últimos documentos de la empresa para diagnóstico
+        /// </summary>
+        [HttpGet("ultimos")]
+        public IActionResult ListarUltimosDocumentos([FromQuery] string rutaEmpresa, [FromQuery] int cantidad = 10)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(rutaEmpresa))
+                    return BadRequest(new { success = false, message = "rutaEmpresa es requerida" });
+
+                var resultado = ((ContpaqiSdkService)_sdkService).ListarUltimosDocumentos(rutaEmpresa, cantidad);
+                
+                return Ok(new { success = true, documentos = resultado });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar documentos");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 
     public class CancelarDocumentoRequest

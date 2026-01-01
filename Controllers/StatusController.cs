@@ -127,7 +127,7 @@ namespace ContpaqiBridge.Controllers
                     return BadRequest("rutaEmpresa es requerida");
 
                 var docs = _sdkService.ListarUltimosDocumentos(rutaEmpresa);
-                return Ok(new { success = true, documentos = docs.Select(d => new { concepto = d.concepto, serie = d.serie, folio = d.folio }) });
+                return Ok(new { success = true, documentos = docs });
             }
             catch (Exception ex)
             {

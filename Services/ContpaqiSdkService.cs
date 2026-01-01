@@ -148,6 +148,9 @@ namespace ContpaqiBridge.Services
         private static extern int fBuscaDocumento(string aCodConcepto, string aSerie, double aFolio);
 
         [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int fBuscaIdDocumento(int aIdDocumento);
+
+        [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
         private static extern int fPosPrimerDocumento();
 
         [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
@@ -174,6 +177,10 @@ namespace ContpaqiBridge.Services
         // Cancelación CFDI 4.0 - Requiere documento posicionado previamente
         [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         private static extern int fCancelaDocumentoConMotivo(string aMotivoCancelacion, string aUUIDReemplaza);
+
+        // Establece la contraseña del CSD antes de cancelar
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fCancelaDoctoInfo(string aPassword);
 
         // Cancelación Administrativa (solo en CONTPAQi, no afecta SAT)
         [DllImport("MGWServicios.dll", CallingConvention = CallingConvention.StdCall)]
@@ -898,6 +905,61 @@ namespace ContpaqiBridge.Services
         }
 
         /// <summary>
+        /// Lista los últimos documentos de la empresa para diagnóstico
+        /// </summary>
+        public List<Dictionary<string, object>> ListarUltimosDocumentos(string rutaEmpresa, int cantidad = 10)
+        {
+            var documentos = new List<Dictionary<string, object>>();
+            
+            try
+            {
+                if (!InicializarSDK()) return documentos;
+                if (!AbrirEmpresa(rutaEmpresa)) return documentos;
+
+                // Ir al último documento y navegar hacia atrás
+                int res = fPosUltimoDocumento();
+                int count = 0;
+                
+                while (res == 0 && count < cantidad)
+                {
+                    var doc = new Dictionary<string, object>();
+                    
+                    StringBuilder idSb = new StringBuilder(20);
+                    StringBuilder conceptoSb = new StringBuilder(20);
+                    StringBuilder serieSb = new StringBuilder(50);
+                    StringBuilder folioSb = new StringBuilder(50);
+                    StringBuilder fechaSb = new StringBuilder(50);
+                    
+                    fLeeDatoDocumento("CIDDOCUMENTO", idSb, 20);
+                    fLeeDatoDocumento("CIDCONCEPTODOCUMENTO", conceptoSb, 20);
+                    fLeeDatoDocumento("CSERIEDOCUMENTO", serieSb, 50);
+                    fLeeDatoDocumento("CFOLIO", folioSb, 50);
+                    fLeeDatoDocumento("CFECHA", fechaSb, 50);
+                    
+                    doc["id"] = idSb.ToString().Trim();
+                    doc["concepto"] = conceptoSb.ToString().Trim();
+                    doc["serie"] = serieSb.ToString().Trim();
+                    doc["folio"] = folioSb.ToString().Trim();
+                    doc["fecha"] = fechaSb.ToString().Trim();
+                    
+                    documentos.Add(doc);
+                    count++;
+                    
+                    res = fPosAnteriorDocumento();
+                }
+                
+                CerrarEmpresa();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al listar documentos");
+                CerrarEmpresa();
+            }
+            
+            return documentos;
+        }
+
+        /// <summary>
         /// Cancela un documento CFDI 4.0 ante el SAT.
         /// Requiere que el documento esté posicionado previamente.
         /// </summary>
@@ -924,51 +986,52 @@ namespace ContpaqiBridge.Services
 
                 string serieClean = (serie ?? "").Trim().ToUpper();
 
-                // 1. Posicionar el documento
-                _logger.LogInformation("Buscando documento para cancelar...");
-                int resBusca = fBuscaDocumento(codigoConcepto, serieClean, folio);
+                // 1. Buscar el documento navegando (fBuscaDocumento falla porque espera código de concepto, no ID)
+                _logger.LogInformation($"Buscando documento para cancelar: Serie={serieClean}, Folio={folio}");
                 
-                if (resBusca != 0)
+                bool documentoEncontrado = false;
+                int idDocumentoEncontrado = 0;
+                
+                // Navegar desde el último documento hacia atrás buscando serie/folio
+                int res = fPosUltimoDocumento();
+                int intentos = 0;
+                const int maxIntentos = 200;
+                
+                StringBuilder serieSb = new StringBuilder(50);
+                StringBuilder folioSb = new StringBuilder(50);
+                StringBuilder idSb = new StringBuilder(20);
+                
+                while (res == 0 && !documentoEncontrado && intentos < maxIntentos)
                 {
-                    _logger.LogWarning($"fBuscaDocumento falló ({resBusca}). Intentando con filtros...");
-                    fCancelaFiltroDocumento();
-                    fSetFiltroDocumento("01/01/2020", "12/31/2030", codigoConcepto, "");
-                    int resNav = fPosPrimerDocumento();
-                    bool encontrado = false;
-                    int intentos = 0;
+                    serieSb.Clear();
+                    folioSb.Clear();
+                    idSb.Clear();
                     
-                    while (resNav == 0 && !encontrado && intentos < 500)
+                    fLeeDatoDocumento("CSERIEDOCUMENTO", serieSb, 50);
+                    fLeeDatoDocumento("CFOLIO", folioSb, 50);
+                    fLeeDatoDocumento("CIDDOCUMENTO", idSb, 20);
+                    
+                    string serieDoc = serieSb.ToString().Trim().ToUpper();
+                    double.TryParse(folioSb.ToString(), out double folioDoc);
+                    int.TryParse(idSb.ToString().Trim(), out int idDoc);
+                    
+                    if (serieDoc == serieClean && Math.Abs(folioDoc - folio) < 0.1)
                     {
-                        StringBuilder sSb = new StringBuilder(50);
-                        StringBuilder fSb = new StringBuilder(50);
-                        fLeeDatoDocumento("CSERIEDOCUMENTO", sSb, 50);
-                        fLeeDatoDocumento("CFOLIO", fSb, 50);
-                        
-                        string s = sSb.ToString().Trim().ToUpper();
-                        double.TryParse(fSb.ToString(), out double f);
-                        
-                        if (s == serieClean && Math.Abs(f - folio) < 0.1)
-                        {
-                            encontrado = true;
-                            _logger.LogInformation("Documento encontrado mediante filtro.");
-                        }
-                        else
-                        {
-                            resNav = fPosSiguienteDocumento();
-                            intentos++;
-                        }
+                        documentoEncontrado = true;
+                        idDocumentoEncontrado = idDoc;
+                        _logger.LogInformation($"Documento encontrado: ID={idDoc}, Serie={serieDoc}, Folio={folioDoc}");
                     }
-                    fCancelaFiltroDocumento();
-                    
-                    if (!encontrado)
+                    else
                     {
-                        CerrarEmpresa();
-                        return (false, "Documento no encontrado en el sistema. Verifique concepto, serie y folio.", "");
+                        res = fPosAnteriorDocumento();
+                        intentos++;
                     }
                 }
-                else
+                
+                if (!documentoEncontrado)
                 {
-                    _logger.LogInformation("Documento posicionado con fBuscaDocumento.");
+                    CerrarEmpresa();
+                    return (false, $"Documento no encontrado: Serie={serieClean}, Folio={folio}. Revisados {intentos} documentos.", "");
                 }
 
                 // 2. Validar motivo de cancelación
@@ -992,7 +1055,19 @@ namespace ContpaqiBridge.Services
                     uuidSustitucion = "";
                 }
 
-                // 3. Intentar cancelar
+                // 3. Establecer contraseña del CSD
+                if (!string.IsNullOrEmpty(passCSD))
+                {
+                    _logger.LogInformation($"Llamando a fCancelaDoctoInfo con password del CSD...");
+                    int resInfo = fCancelaDoctoInfo(passCSD);
+                    if (resInfo != 0)
+                    {
+                        _logger.LogWarning($"fCancelaDoctoInfo retornó: {resInfo} - {GetUltimoError(resInfo)}");
+                        // Continuamos aunque falle, quizás no es crítico
+                    }
+                }
+
+                // 4. Intentar cancelar
                 _logger.LogInformation($"Llamando a fCancelaDocumentoConMotivo('{motivoCancelacion}', '{uuidSustitucion}')...");
                 int resCancela = fCancelaDocumentoConMotivo(motivoCancelacion, uuidSustitucion ?? "");
 
@@ -1493,52 +1568,6 @@ namespace ContpaqiBridge.Services
         {
             _logger.LogWarning("ListarConceptos no está disponible en esta versión del SDK.");
             return new List<(string codigo, string nombre)>();
-        }
-
-        public List<(string concepto, string serie, double folio)> ListarUltimosDocumentos(string rutaEmpresa, int limite = 20)
-        {
-            var docs = new List<(string concepto, string serie, double folio)>();
-            try
-            {
-                if (!InicializarSDK()) return docs;
-                if (!AbrirEmpresa(rutaEmpresa)) return docs;
-
-                _logger.LogInformation("Listando últimos documentos para diagnóstico...");
-                
-                int res = fPosUltimoDocumento();
-                int count = 0;
-                
-                while (res == 0 && count < limite)
-                {
-                    StringBuilder conceptoSb = new StringBuilder(50);
-                    StringBuilder serieSb = new StringBuilder(50);
-                    StringBuilder folioSb = new StringBuilder(50);
-
-                    // Estos son los nombres de columnas estándar en la tabla admDocumentos
-                    // y campos que fLeeDatoDocumento debería entender
-                    fLeeDatoDocumento("CCODIGOCONCEPTO", conceptoSb, 50);
-                    fLeeDatoDocumento("CSERIEDOCUMENTO", serieSb, 50);
-                    fLeeDatoDocumento("CFOLIO", folioSb, 50);
-
-                    string concepto = conceptoSb.ToString().Trim();
-                    string serie = serieSb.ToString().Trim();
-                    double.TryParse(folioSb.ToString(), out double folio);
-
-                    docs.Add((concepto, serie, folio));
-                    _logger.LogInformation($"Doc Encontrado: Concepto='{concepto}', Serie='{serie}', Folio={folio}");
-
-                    res = fPosAnteriorDocumento();
-                    count++;
-                }
-
-                CerrarEmpresa();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al listar últimos documentos");
-                CerrarEmpresa();
-            }
-            return docs;
         }
 
         /// <summary>
