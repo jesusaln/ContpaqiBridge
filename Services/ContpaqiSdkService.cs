@@ -1351,27 +1351,50 @@ namespace ContpaqiBridge.Services
                 _logger.LogInformation($"fBuscaProducto('{codigo}') retornó: {existe}");
                 if (existe == 0)
                 {
-                    _logger.LogInformation($"Producto {codigo} ya existe. Verificando si requiere actualización de precio...");
+                    _logger.LogInformation($"Producto {codigo} ya existe. Actualizando datos (ClaveSAT, Precio, Nombre)...");
                     
-                    // Verificar si tiene precio 0
-                    StringBuilder sbPrecio = new StringBuilder(50);
-                    fLeeDatoProducto("CPRECIO1", sbPrecio, 50);
-                    double precioExistente = 0;
-                    double.TryParse(sbPrecio.ToString(), out precioExistente);
+                    // Entrar en modo edición para actualizar datos
+                    fEditaProducto();
                     
-                    if (precioExistente <= 0 && precio > 0)
+                    // Actualizar CLAVE SAT (Crítico para timbrado 4.0)
+                    if (!string.IsNullOrEmpty(claveSAT))
                     {
-                        _logger.LogInformation($"El producto {codigo} tiene precio 0. Actualizando a {precio}...");
-                        fEditaProducto();
-                        fSetDatoProducto("CPRECIO1", precio.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
-                        fSetDatoProducto("CPRECIO2", precio.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
-                        fSetDatoProducto("CPRECIO3", precio.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
-                        fGuardaProducto();
-                        _logger.LogInformation($"Precio actualizado exitosamente para {codigo}.");
+                        fSetDatoProducto("CCLAVESAT", claveSAT);
                     }
                     
+                    // Actualizar Nombre
+                    if (!string.IsNullOrEmpty(nombre))
+                    {
+                        fSetDatoProducto("CNOMBREPRODUCTO", nombre);
+                    }
+
+                    // Actualizar Precios
+                    if (precio > 0)
+                    {
+                        string precioStr = precio.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                        fSetDatoProducto("CPRECIO1", precioStr);
+                        fSetDatoProducto("CPRECIO2", precioStr);
+                        fSetDatoProducto("CPRECIO3", precioStr);
+                        fSetDatoProducto("CPRECIO4", precioStr);
+                        fSetDatoProducto("CPRECIO5", precioStr);
+                        fSetDatoProducto("CPRECIO6", precioStr);
+                        fSetDatoProducto("CPRECIO7", precioStr);
+                        fSetDatoProducto("CPRECIO8", precioStr);
+                        fSetDatoProducto("CPRECIO9", precioStr);
+                        fSetDatoProducto("CPRECIO10", precioStr);
+                    }
+                    
+                    // Actualizar Descripción
+                    if (!string.IsNullOrEmpty(descripcion))
+                    {
+                        fSetDatoProducto("CDESCRIPCIONPRODUCTO", descripcion);
+                    }
+
+                    fGuardaProducto();
+                    _logger.LogInformation($"Producto {codigo} actualizado exitosamente.");
+                    
                     CerrarEmpresa();
-                    return (true, $"El producto {codigo} ya existe", 0);
+                    return (true, $"El producto {codigo} fue actualizado", 0);
                 }
 
                 // 4. Usar flujo bajo nivel: fInsertaProducto -> fSetDatoProducto -> fGuardaProducto
