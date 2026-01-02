@@ -1323,6 +1323,7 @@ namespace ContpaqiBridge.Services
                 // 4. Crear estructura del cliente
                 tCteProv cliente = new tCteProv();
                 int result = 0;
+                int idCliente = 0; // Declaración en ámbito principal para evitar CS0103
 
                 // Solo si NO existe, creamos la estructura y damos de alta
                 if (existe != 0)
