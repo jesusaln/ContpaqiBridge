@@ -629,7 +629,7 @@ namespace ContpaqiBridge.Services
                 var camposDocumento = new List<(string campo, string valor)>
                 {
                     ("CIDCONCEPTODOCUMENTO", codigoConcepto),    // 1. PRIMERO el concepto del documento
-                    ("CCODIGOCLIENTE", codigoCliente),           // 2. LUEGO el cliente (ej: "AANL") - CONTPAQi autocompleta lo demás
+                    ("CCODIGOCLIENTE", codigoCliente),           // 2. LUEGO el cliente
                     ("CSERIEDOCUMENTO", serie),
                     ("CFOLIO", folioNum.ToString("F0")),
                     ("CFECHA", fechaHoy),
@@ -637,17 +637,19 @@ namespace ContpaqiBridge.Services
                     ("CTIPOCAMBIO", "1.00"),
                     ("CREFERENCIA", "API Bridge"),
                     ("COBSERVACIONES", $"Generado via API {DateTime.Now:yyyy-MM-dd HH:mm}"),
-                    ("CMETODOPAG", formaPago),
-                    ("CCONDIPAGO", metodoPago)
+                    ("CMETODOPAG", metodoPago ?? "PUE"),         // PUE o PPD
+                    ("CCONDIPAGO", "Contado"),                    // Condiciones (Texto)
+                    ("CFORMAPAGO", formaPago ?? "99")            // 01, 03, 99, etc.
                 };
 
-                // El Uso de CFDI a veces falla en el documento, pero se hereda del cliente si no se pone.
-                // Intentamos ponerlo pero no bloqueamos si falla.
+                // El Uso de CFDI
                 if (!string.IsNullOrEmpty(usoCFDI))
                 {
+                    // Algunos sistemas aceptan el código directo (G01, S01, etc.)
+                    _logger.LogInformation($"fSetDatoDocumento('CUSOCFDI', '{usoCFDI}')");
                     int resUso = fSetDatoDocumento("CUSOCFDI", usoCFDI);
                     if (resUso != 0) 
-                        _logger.LogWarning($"fSetDatoDocumento(CUSOCFDI) no aceptado ({resUso}). Se usará el del cliente.");
+                        _logger.LogWarning($"fSetDatoDocumento(CUSOCFDI) falló con {resUso}.");
                 }
 
                 foreach (var item in camposDocumento)
@@ -1334,6 +1336,12 @@ namespace ContpaqiBridge.Services
         {
             try
             {
+                // Normalizar clave SAT a 8 dígitos (ej: "1010101" -> "01010101")
+                if (!string.IsNullOrEmpty(claveSAT) && claveSAT.Length < 8 && int.TryParse(claveSAT, out _))
+                {
+                    claveSAT = claveSAT.PadLeft(8, '0');
+                }
+
                 // 1. Inicializar SDK
                 if (!InicializarSDK())
                 {
@@ -1351,20 +1359,36 @@ namespace ContpaqiBridge.Services
                 _logger.LogInformation($"fBuscaProducto('{codigo}') retornó: {existe}");
                 if (existe == 0)
                 {
-                    _logger.LogInformation($"Producto {codigo} ya existe. Actualizando datos (ClaveSAT, Precio, Nombre)...");
+                    _logger.LogInformation($"Producto {codigo} ya existe. Parametros recibidos: Nombre='{nombre}', Precio={precio}, ClaveSAT='{claveSAT}'");
                     
                     // Entrar en modo edición para actualizar datos
-                    fEditaProducto();
+                    int resEdita = fEditaProducto();
+                    if (resEdita != 0)
+                    {
+                        _logger.LogError($"Error al poner producto en modo edición: {resEdita} - {GetUltimoError(resEdita)}");
+                        CerrarEmpresa();
+                        return (false, $"Error al editar producto: {GetUltimoError(resEdita)}", 0);
+                    }
                     
                     // Actualizar CLAVE SAT (Crítico para timbrado 4.0)
                     if (!string.IsNullOrEmpty(claveSAT))
                     {
-                        _logger.LogInformation($"Intentando actualizar CCLAVESAT a '{claveSAT}'...");
+                        _logger.LogInformation($"Intentando actualizar Clave SAT a '{claveSAT}'...");
+                        
+                        // Intentar con CCLAVESAT (Estándar en Comercial Premium)
                         int resSAT = fSetDatoProducto("CCLAVESAT", claveSAT);
+                        
+                        // Si falla, intentar con CCLAVEPRODSERV (Nombre alternativo en algunas versiones)
+                        if (resSAT != 0)
+                        {
+                            _logger.LogWarning($"CCLAVESAT falló ({resSAT}), intentando con CCLAVEPRODSERV...");
+                            resSAT = fSetDatoProducto("CCLAVEPRODSERV", claveSAT);
+                        }
+
                         if (resSAT != 0) 
-                            _logger.LogWarning($"Fallo al actualizar CCLAVESAT: {resSAT} - {GetUltimoError(resSAT)}");
+                            _logger.LogWarning($"Fallo final al actualizar Clave SAT: {resSAT} - {GetUltimoError(resSAT)}");
                         else
-                            _logger.LogInformation("CCLAVESAT actualizada correctamente.");
+                            _logger.LogInformation("Clave SAT actualizada correctamente.");
                     }
                     
                     // Actualizar Nombre
@@ -1487,7 +1511,7 @@ namespace ContpaqiBridge.Services
                     }
                 }
 
-                // Intentar setear unidad de medida usando H87 (Código SAT)
+                // Intentar setear unidad de medida
                 if (!string.IsNullOrEmpty(unidadMedida))
                 {
                     _logger.LogInformation($"fSetDatoProducto('CCOMNOMBREUNIDAD', '{unidadMedida}')");
@@ -1495,18 +1519,12 @@ namespace ContpaqiBridge.Services
                     if (resUnidad != 0)
                     {
                         _logger.LogWarning($"Unidad '{unidadMedida}' rechazada por nombre. Intentando con CIDUNIDADBASE...");
-                        // Fallback: Intentar con el ID interno como string ("1" = Pieza, "6" = Servicio)
-                        resUnidad = fSetDatoProducto("CIDUNIDADBASE", "1"); 
-                        if (resUnidad != 0)
-                        {
-                            _logger.LogError("No se pudo asignar la unidad de medida. El producto podría fallar al facturar.");
-                        }
+                        fSetDatoProducto("CIDUNIDADBASE", "1"); 
+                        resUnidad = 0; // Continuamos
                     }
                     
-                    if (resUnidad == 0)
-                    {
-                        fSetDatoProducto("CCODIGOUNIDADNOCONVERTIBLE", unidadMedida == "H87" ? "H87" : "6");
-                    }
+                    // En muchas versiones de Comercial, este campo guarda la Clave SAT de la unidad
+                    fSetDatoProducto("CCODIGOUNIDADNOCONVERTIBLE", unidadMedida);
                 }
 
                 // 6. Guardar producto
