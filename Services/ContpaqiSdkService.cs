@@ -604,6 +604,31 @@ namespace ContpaqiBridge.Services
                 
                 _logger.LogInformation($"Cliente encontrado. ID: {idCliente}, Razón Social: {razonSocial}, RFC: {rfcCliente}");
 
+                // ============================================================
+                // ESTRATEGIA DE PRE-LLENADO: Actualizar Cliente con datos CFDI 4.0
+                // ============================================================
+                // Dado que fSetDatoDocumento falla para CUSOCFDI/CFORMAPAGO en algunas versiones,
+                // actualizamos el CLIENTE antes de crear el documento. El SDK heredará estos datos.
+                
+                fBuscaCteProv(codigoCliente);
+                int resEditaCte = fEditaCteProv();
+                if (resEditaCte == 0)
+                {
+                    // 1. Uso CFDI (Crítico para 160423)
+                   string usoFinal = !string.IsNullOrEmpty(usoCFDI) ? usoCFDI : "G01";
+                   fSetDatoCteProv("CUSOCFDI", usoFinal);
+
+                   // 2. Forma de Pago en el Cliente (se usa CMETODOPAG para esto en admClientes)
+                   // Si formaPago es "01", "03", lo ponemos aquí.
+                   if (!string.IsNullOrEmpty(formaPago))
+                   {
+                       fSetDatoCteProv("CMETODOPAG", formaPago); 
+                   }
+
+                   fGuardaCteProv();
+                }
+                // ============================================================
+
                 // 5. BAJO NIVEL: Insertar documento (cabecera)
                 _logger.LogInformation("Llamando a fInsertarDocumento()...");
                 int resInsertarDoc = fInsertarDocumento();
