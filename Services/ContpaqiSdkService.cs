@@ -1294,11 +1294,17 @@ namespace ContpaqiBridge.Services
                 }
 
                 // 3. Verificar si el cliente ya existe
+                // 3. Verificar si el cliente ya existe
                 int existe = fBuscaCteProv(codigo);
-                if (existe == 0)
+                if (existe == 0) // Existe
                 {
-                    CerrarEmpresa();
-                    return (true, "El cliente ya existe en el catálogo", 0);
+                    _logger.LogInformation($"El cliente {codigo} ya existe. Actualizando datos...");
+                    fEditaCteProv();
+                    // Continuamos al bloque de actualización abajo...
+                }
+                else
+                {
+                    // No existe, procedemos a crear estructura
                 }
 
                 // 2.1 Especial para Público en General (CFDI 4.0)
@@ -1315,33 +1321,39 @@ namespace ContpaqiBridge.Services
                 }
 
                 // 4. Crear estructura del cliente
-                tCteProv cliente = new tCteProv
-                {
-                    aCodigo = codigo,
-                    aRazonSocial = razonSocial,
-                    aRFC = rfc,
-                    aDenComercial = razonSocial,
-                    aRepLegal = "",
-                    aTipoCliente = 1, // 1 = Cliente
-                    aEstatus = 1, // 1 = Activo
-                    aCalle = calle,
-                    aNoExterior = "",
-                    aNoInterior = "",
-                    aColonia = colonia,
-                    aCodigoPostal = codigoPostal,
-                    aCiudad = ciudad,
-                    aEstado = estado,
-                    aPais = pais,
-                    aEmail = email,
-                    aIdMoneda = 1, // Peso mexicano
-                    aLimiteCreditoFlag = 0,
-                    aLimiteCredito = 0
-                };
+                tCteProv cliente = new tCteProv();
+                int result = 0;
 
-                // 5. Crear cliente
-                int idCliente = 0;
-                int result = fAltaCteProv(ref idCliente, ref cliente);
-                
+                // Solo si NO existe, creamos la estructura y damos de alta
+                if (existe != 0)
+                {
+                    cliente = new tCteProv
+                    {
+                        aCodigo = codigo,
+                        aRazonSocial = razonSocial,
+                        aRFC = rfc,
+                        aDenComercial = razonSocial,
+                        aRepLegal = "",
+                        aTipoCliente = 1, // 1 = Cliente
+                        aEstatus = 1, // 1 = Activo
+                        aCalle = calle,
+                        aNoExterior = "",
+                        aNoInterior = "",
+                        aColonia = colonia,
+                        aCodigoPostal = codigoPostal,
+                        aCiudad = ciudad,
+                        aEstado = estado,
+                        aPais = pais,
+                        aEmail = email,
+                        aIdMoneda = 1, // Peso mexicano
+                        aLimiteCreditoFlag = 0,
+                        aLimiteCredito = 0
+                    };
+                     // 5. Crear cliente
+                     result = fAltaCteProv(ref idCliente, ref cliente);
+                }
+
+                // Si se creó o ya existía, procedemos a actualizar datos complementarios
                 if (result == 0)
                 {
                     // 6. Setear campos adicionales y asegurar RFC/Nombre
