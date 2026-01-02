@@ -1503,6 +1503,13 @@ namespace ContpaqiBridge.Services
                         fSetDatoProducto("CDESCRIPCIONPRODUCTO", descripcion);
                     }
 
+                    // ===== CFDI 4.0: FORZAR IVA 16% =====
+                    // Sin esto, el XML sale sin impuestos y falla con ObjetoImp=02
+                    _logger.LogInformation("Forzando configuración de IVA 16% en producto...");
+                    fSetDatoProducto("CBANIMPUESTO", "1");    // 1 = Aplica impuestos
+                    fSetDatoProducto("CIMPUESTO1", "16.0");   // IVA 16%
+                    // ====================================
+
                     // Actualizar Unidad de Medida (Clave SAT de la unidad)
                     if (!string.IsNullOrEmpty(unidadMedida))
                     {
