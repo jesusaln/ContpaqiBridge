@@ -687,11 +687,8 @@ namespace ContpaqiBridge.Services
                     ("CTIPOCAMBIO", "1.00"),
                     ("CREFERENCIA", "API Bridge"),
                     ("COBSERVACIONES", $"Generado via API {DateTime.Now:yyyy-MM-dd HH:mm}"),
-                    ("CMETODOPAG", metodoPago),         // PUE o PPD
-                    ("CCONDIPAGO", "Contado"),          // Condiciones (Texto)
-                    // ("CFORMAPAGO", formaPago),       // SDK marca Error 73 (Campo inválido)
-                    ("CTEXTOEXTRA1", formaPago),        // Intento 1: Campo Extra 1
-                    ("CTEXTOEXTRA2", formaPago)         // Intento 2: Campo Extra 2
+                    ("CMETODOPAG", formaPago),         // FORMA DE PAGO: 01, 03, 99 (NO PUE/PPD)
+                    ("CCONDIPAGO", metodoPago)         // Condiciones: PUE, PPD u otro texto
                 };
 
                 // Forzar Uso CFDI si viene vacío
