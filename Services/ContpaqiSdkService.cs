@@ -656,15 +656,24 @@ namespace ContpaqiBridge.Services
                     ("CTEXTOEXTRA2", formaPago)         // Intento 2: Campo Extra 2
                 };
 
-                // El Uso de CFDI
-                if (!string.IsNullOrEmpty(usoCFDI))
+                // Forzar Uso CFDI si viene vacío
+                if (string.IsNullOrEmpty(usoCFDI)) usoCFDI = "G01";
+                
+                // Mapeo manual de Forma de Pago a ID interno (basado en SQL: 01->2, 03->1)
+                // Esto es un intento final si CFORMAPAGO falla
+                string idFormaPago = "";
+                if (formaPago == "01") idFormaPago = "2";
+                else if (formaPago == "03") idFormaPago = "1";
+                
+                if (!string.IsNullOrEmpty(idFormaPago))
                 {
-                    // Algunos sistemas aceptan el código directo (G01, S01, etc.)
-                    _logger.LogInformation($"fSetDatoDocumento('CUSOCFDI', '{usoCFDI}')");
-                    int resUso = fSetDatoDocumento("CUSOCFDI", usoCFDI);
-                    if (resUso != 0) 
-                        _logger.LogWarning($"fSetDatoDocumento(CUSOCFDI) falló con {resUso}.");
+                     camposDocumento.Add(("CIDFORMAPAGO", idFormaPago));
                 }
+
+                // El Uso de CFDI envialo siempre
+                _logger.LogInformation($"fSetDatoDocumento('CUSOCFDI', '{usoCFDI}')");
+                int resUso = fSetDatoDocumento("CUSOCFDI", usoCFDI);
+                if (resUso != 0) _logger.LogWarning($"fSetDatoDocumento(CUSOCFDI) falló con {resUso}.");
 
                 foreach (var item in camposDocumento)
                 {
