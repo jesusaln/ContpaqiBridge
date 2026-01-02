@@ -1382,11 +1382,14 @@ namespace ContpaqiBridge.Services
                         _logger.LogInformation($"Intentando actualizar Clave SAT a '{claveSAT}'...");
                         
                         // Intentar con todos los campos posibles que usa CONTPAQi para el SAT
-                        fSetDatoProducto("CCLAVESAT", claveSAT);
-                        fSetDatoProducto("CCLAVEPRODSERV", claveSAT);
-                        fSetDatoProducto("C_SAT_PRODUCTO", claveSAT); // Usado en algunas personalizaciones
+                        int r1 = fSetDatoProducto("CCLAVESAT", claveSAT);
+                        _logger.LogInformation($"fSetDatoProducto('CCLAVESAT', '{claveSAT}') retornó: {r1}");
                         
-                        _logger.LogInformation("Campos de Clave SAT enviados.");
+                        int r2 = fSetDatoProducto("CCLAVEPRODSERV", claveSAT);
+                        _logger.LogInformation($"fSetDatoProducto('CCLAVEPRODSERV', '{claveSAT}') retornó: {r2}");
+                        
+                        int r3 = fSetDatoProducto("C_SAT_PRODUCTO", claveSAT);
+                        _logger.LogInformation($"fSetDatoProducto('C_SAT_PRODUCTO', '{claveSAT}') retornó: {r3}");
                     }
                     
                     // Actualizar Nombre
