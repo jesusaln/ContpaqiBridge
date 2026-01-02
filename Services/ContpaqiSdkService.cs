@@ -1414,37 +1414,38 @@ namespace ContpaqiBridge.Services
                         fSetDatoProducto("CPRECIO10", precioStr);
                     }
                     
-                    // Actualizar Descripción
+                    // Actualizar descripción
                     if (!string.IsNullOrEmpty(descripcion))
                     {
                         fSetDatoProducto("CDESCRIPCIONPRODUCTO", descripcion);
                     }
 
-                    // Actualizar Unidad de Medida (H87, etc)
+                    // Actualizar Unidad de Medida (Clave SAT de la unidad)
                     if (!string.IsNullOrEmpty(unidadMedida))
                     {
-                        _logger.LogInformation($"Intentando actualizar unidad a '{unidadMedida}'...");
-                        int resUnidad = fSetDatoProducto("CCOMNOMBREUNIDAD", unidadMedida);
-                        if (resUnidad != 0)
-                        {
-                            fSetDatoProducto("CIDUNIDADBASE", "1"); // Fallback a Pieza si falla
-                        }
-                        fSetDatoProducto("CCODIGOUNIDADNOCONVERTIBLE", unidadMedida == "H87" ? "H87" : "6");
+                        _logger.LogInformation($"Actualizando Unidad SAT a '{unidadMedida}'...");
+                        fSetDatoProducto("CCOMNOMBREUNIDAD", unidadMedida);
+                        fSetDatoProducto("CCODIGOUNIDADNOCONVERTIBLE", unidadMedida);
                     }
 
                     _logger.LogInformation("Llamando a fGuardaProducto()...");
                     int resGuardaUpdate = fGuardaProducto();
                     if (resGuardaUpdate != 0)
                     {
-                        _logger.LogError($"Error al guardar actualización de producto: {resGuardaUpdate} - {GetUltimoError(resGuardaUpdate)}");
+                        _logger.LogError($"Error al guardar producto: {resGuardaUpdate} - {GetUltimoError(resGuardaUpdate)}");
                     }
                     else
                     {
-                        _logger.LogInformation($"Producto {codigo} actualizado exitosamente en CONTPAQi.");
+                        // VERIFICACIÓN: Leer de nuevo para asegurar que se guardó
+                        StringBuilder valSAT = new StringBuilder(20);
+                        fLeeDatoProducto("CCLAVESAT", valSAT, 20);
+                        if (valSAT.Length == 0) fLeeDatoProducto("CCLAVEPRODSERV", valSAT, 20);
+                        
+                        _logger.LogInformation($"Producto {codigo} actualizado. Valor SAT actual en CONTPAQi: '{valSAT.ToString().Trim()}'");
                     }
                     
                     CerrarEmpresa();
-                    return (true, $"El producto {codigo} fue actualizado", 0);
+                    return (true, $"Producto {codigo} actualizado (SAT: '{claveSAT}')", 0);
                 }
 
                 // 4. Usar flujo bajo nivel: fInsertaProducto -> fSetDatoProducto -> fGuardaProducto
