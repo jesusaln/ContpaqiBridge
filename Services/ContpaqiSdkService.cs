@@ -708,6 +708,9 @@ namespace ContpaqiBridge.Services
                      camposDocumento.Add(("CIDFORMAPAGO", idFormaPago));
                 }
 
+                // CFDI 4.0: Exportacion (01 = No aplica)
+                camposDocumento.Add(("CEXPORTACION", "01"));
+
                 // El Uso de CFDI envialo siempre
                 _logger.LogInformation($"fSetDatoDocumento('CUSOCFDI', '{usoCFDI}')");
                 int resUso = fSetDatoDocumento("CUSOCFDI", usoCFDI);
@@ -810,6 +813,12 @@ namespace ContpaqiBridge.Services
                     }
                     
                     fSetDatoMovimiento("CREFERENCIA", "API Mov");
+                    
+                    // CFDI 4.0: Objeto de Impuesto (02 = Sí objeto de impuesto)
+                    // Si falla, intentaremos 01 (No objeto) o dejaremos que el SDK decida
+                    int resObjImp = fSetDatoMovimiento("COBJETOIMP", "02");
+                    if (resObjImp != 0) _logger.LogWarning($"fSetDatoMovimiento(COBJETOIMP) falló: {resObjImp}");
+                    else _logger.LogInformation("COBJETOIMP set to 02");
 
                     // Guardar movimiento
                     _logger.LogInformation($"fGuardaMovimiento() para {producto.codigo}");
