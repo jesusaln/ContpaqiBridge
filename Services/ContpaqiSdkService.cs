@@ -1359,12 +1359,18 @@ namespace ContpaqiBridge.Services
                     // Actualizar CLAVE SAT (Crítico para timbrado 4.0)
                     if (!string.IsNullOrEmpty(claveSAT))
                     {
-                        fSetDatoProducto("CCLAVESAT", claveSAT);
+                        _logger.LogInformation($"Intentando actualizar CCLAVESAT a '{claveSAT}'...");
+                        int resSAT = fSetDatoProducto("CCLAVESAT", claveSAT);
+                        if (resSAT != 0) 
+                            _logger.LogWarning($"Fallo al actualizar CCLAVESAT: {resSAT} - {GetUltimoError(resSAT)}");
+                        else
+                            _logger.LogInformation("CCLAVESAT actualizada correctamente.");
                     }
                     
                     // Actualizar Nombre
                     if (!string.IsNullOrEmpty(nombre))
                     {
+                        _logger.LogInformation($"Actualizando nombre a '{nombre}'...");
                         fSetDatoProducto("CNOMBREPRODUCTO", nombre);
                     }
 
