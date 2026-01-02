@@ -622,25 +622,37 @@ namespace ContpaqiBridge.Services
                 // EL ORDEN ES CRÍTICO - NO MODIFICAR.
                 // ============================================================
                 
+                // Normalizar Método y Forma de Pago (safeguard para errores comunes)
+                // Si metodoPago parece una Forma de Pago (ej: "01", "03"), los intercambiamos
+                if (!string.IsNullOrEmpty(metodoPago) && metodoPago.Length == 2 && int.TryParse(metodoPago, out _))
+                {
+                    _logger.LogWarning($"Detección de Método de Pago incorrecto '{metodoPago}'. Corrigiendo a 'PUE' y moviendo valor a Forma de Pago.");
+                    formaPago = metodoPago;
+                    metodoPago = "PUE";
+                }
+
+                // Asegurar que metodoPago sea PUE o PPD
+                if (metodoPago != "PUE" && metodoPago != "PPD") metodoPago = "PUE";
+                if (string.IsNullOrEmpty(formaPago)) formaPago = "99";
+
                 // 6. Setear campos en ORDEN ESPECÍFICO (como lo pide CONTPAQi manualmente)
-                string fechaHoy = DateTime.Now.ToString("MM/dd/yyyy"); // Formato americano para SDK
+                string fechaHoy = DateTime.Now.ToString("MM/dd/yyyy"); 
                 
-                // Lista ordenada: PRIMERO concepto, LUEGO cliente (así lo pide CONTPAQi)
                 var camposDocumento = new List<(string campo, string valor)>
                 {
-                    ("CIDCONCEPTODOCUMENTO", codigoConcepto),    // 1. PRIMERO el concepto del documento
-                    ("CCODIGOCLIENTE", codigoCliente),           // 2. LUEGO el cliente
+                    ("CIDCONCEPTODOCUMENTO", codigoConcepto),
+                    ("CCODIGOCLIENTE", codigoCliente),
                     ("CSERIEDOCUMENTO", serie),
                     ("CFOLIO", folioNum.ToString("F0")),
                     ("CFECHA", fechaHoy),
-                    ("CIDMONEDA", "1"),                          // 1 = MXN
+                    ("CIDMONEDA", "1"),
                     ("CTIPOCAMBIO", "1.00"),
                     ("CREFERENCIA", "API Bridge"),
                     ("COBSERVACIONES", $"Generado via API {DateTime.Now:yyyy-MM-dd HH:mm}"),
-                    ("CMETODOPAG", metodoPago ?? "PUE"),         // PUE o PPD
-                    ("CCONDIPAGO", "Contado"),                    // Condiciones (Texto)
-                    ("CFORMAPAGO", formaPago ?? "99"),           // 01, 03, 99, etc.
-                    ("CFORMAPAG", formaPago ?? "99")             // Variación de nombre
+                    ("CMETODOPAG", metodoPago),         // PUE o PPD
+                    ("CCONDIPAGO", "Contado"),           // Condiciones (Texto)
+                    ("CFORMAPAGO", formaPago),          // 01, 03, 99
+                    ("CFORMAPAG", formaPago)            // Variación
                 };
 
                 // El Uso de CFDI
