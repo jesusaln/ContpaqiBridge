@@ -639,7 +639,8 @@ namespace ContpaqiBridge.Services
                     ("COBSERVACIONES", $"Generado via API {DateTime.Now:yyyy-MM-dd HH:mm}"),
                     ("CMETODOPAG", metodoPago ?? "PUE"),         // PUE o PPD
                     ("CCONDIPAGO", "Contado"),                    // Condiciones (Texto)
-                    ("CFORMAPAGO", formaPago ?? "99")            // 01, 03, 99, etc.
+                    ("CFORMAPAGO", formaPago ?? "99"),           // 01, 03, 99, etc.
+                    ("CFORMAPAG", formaPago ?? "99")             // Variación de nombre
                 };
 
                 // El Uso de CFDI
@@ -1373,22 +1374,19 @@ namespace ContpaqiBridge.Services
                     // Actualizar CLAVE SAT (Crítico para timbrado 4.0)
                     if (!string.IsNullOrEmpty(claveSAT))
                     {
-                        _logger.LogInformation($"Intentando actualizar Clave SAT a '{claveSAT}'...");
-                        
-                        // Intentar con CCLAVESAT (Estándar en Comercial Premium)
-                        int resSAT = fSetDatoProducto("CCLAVESAT", claveSAT);
-                        
-                        // Si falla, intentar con CCLAVEPRODSERV (Nombre alternativo en algunas versiones)
-                        if (resSAT != 0)
-                        {
-                            _logger.LogWarning($"CCLAVESAT falló ({resSAT}), intentando con CCLAVEPRODSERV...");
-                            resSAT = fSetDatoProducto("CCLAVEPRODSERV", claveSAT);
+                        // Asegurar 8 dígitos (ej: "1010101" -> "01010101")
+                        if (claveSAT.Length < 8 && int.TryParse(claveSAT, out _)) {
+                            claveSAT = claveSAT.PadLeft(8, '0');
                         }
 
-                        if (resSAT != 0) 
-                            _logger.LogWarning($"Fallo final al actualizar Clave SAT: {resSAT} - {GetUltimoError(resSAT)}");
-                        else
-                            _logger.LogInformation("Clave SAT actualizada correctamente.");
+                        _logger.LogInformation($"Intentando actualizar Clave SAT a '{claveSAT}'...");
+                        
+                        // Intentar con todos los campos posibles que usa CONTPAQi para el SAT
+                        fSetDatoProducto("CCLAVESAT", claveSAT);
+                        fSetDatoProducto("CCLAVEPRODSERV", claveSAT);
+                        fSetDatoProducto("C_SAT_PRODUCTO", claveSAT); // Usado en algunas personalizaciones
+                        
+                        _logger.LogInformation("Campos de Clave SAT enviados.");
                     }
                     
                     // Actualizar Nombre
@@ -1493,6 +1491,8 @@ namespace ContpaqiBridge.Services
                 if (!string.IsNullOrEmpty(claveSAT))
                 {
                     camposOpcionales.Add("CCLAVESAT", claveSAT);
+                    camposOpcionales.Add("CCLAVEPRODSERV", claveSAT);
+                    camposOpcionales.Add("C_SAT_PRODUCTO", claveSAT);
                 }
 
                 // Agregar descripción si se proporciona
