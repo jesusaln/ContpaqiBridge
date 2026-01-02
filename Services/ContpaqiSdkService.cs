@@ -1396,8 +1396,28 @@ namespace ContpaqiBridge.Services
                         fSetDatoProducto("CDESCRIPCIONPRODUCTO", descripcion);
                     }
 
-                    fGuardaProducto();
-                    _logger.LogInformation($"Producto {codigo} actualizado exitosamente.");
+                    // Actualizar Unidad de Medida (H87, etc)
+                    if (!string.IsNullOrEmpty(unidadMedida))
+                    {
+                        _logger.LogInformation($"Intentando actualizar unidad a '{unidadMedida}'...");
+                        int resUnidad = fSetDatoProducto("CCOMNOMBREUNIDAD", unidadMedida);
+                        if (resUnidad != 0)
+                        {
+                            fSetDatoProducto("CIDUNIDADBASE", "1"); // Fallback a Pieza si falla
+                        }
+                        fSetDatoProducto("CCODIGOUNIDADNOCONVERTIBLE", unidadMedida == "H87" ? "H87" : "6");
+                    }
+
+                    _logger.LogInformation("Llamando a fGuardaProducto()...");
+                    int resGuardaUpdate = fGuardaProducto();
+                    if (resGuardaUpdate != 0)
+                    {
+                        _logger.LogError($"Error al guardar actualización de producto: {resGuardaUpdate} - {GetUltimoError(resGuardaUpdate)}");
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Producto {codigo} actualizado exitosamente en CONTPAQi.");
+                    }
                     
                     CerrarEmpresa();
                     return (true, $"El producto {codigo} fue actualizado", 0);
