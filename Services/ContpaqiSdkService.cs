@@ -611,21 +611,34 @@ namespace ContpaqiBridge.Services
                 // actualizamos el CLIENTE antes de crear el documento. El SDK heredará estos datos.
                 
                 fBuscaCteProv(codigoCliente);
+                _logger.LogInformation("Actualizando Cliente con datos CFDI 4.0 para asegurar herencia...");
                 int resEditaCte = fEditaCteProv();
                 if (resEditaCte == 0)
                 {
-                    // 1. Uso CFDI (Crítico para 160423)
+                    // 1. Uso CFDI
                    string usoFinal = !string.IsNullOrEmpty(usoCFDI) ? usoCFDI : "G01";
                    fSetDatoCteProv("CUSOCFDI", usoFinal);
+                   _logger.LogInformation($"Cliente CUSOCFDI actualizado a: {usoFinal}");
 
-                   // 2. Forma de Pago en el Cliente (se usa CMETODOPAG para esto en admClientes)
-                   // Si formaPago es "01", "03", lo ponemos aquí.
+                   // 2. Forma de Pago -> Mapeo a ID interno (CMETODOPAG en cliente espera ID)
                    if (!string.IsNullOrEmpty(formaPago))
                    {
-                       fSetDatoCteProv("CMETODOPAG", formaPago); 
+                       string idForma = formaPago; // Default
+                       // Mapeo basado en SQL admFormasPago: 01->2, 03->1, 99->? (asumimos 0 o null)
+                       if (formaPago == "01") idForma = "2";
+                       else if (formaPago == "03") idForma = "1";
+                       // Agregar más si es necesario o dejar pasar el valor si el sistema lo acepta
+                       
+                       fSetDatoCteProv("CMETODOPAG", idForma); 
+                       _logger.LogInformation($"Cliente CMETODOPAG (FormaPago) actualizado a ID: {idForma} (Orig: {formaPago})");
                    }
 
                    fGuardaCteProv();
+                   _logger.LogInformation("Cliente guardado con datos CFDI.");
+                }
+                else
+                {
+                    _logger.LogWarning($"No se pudo editar el cliente para datos CFDI. Código: {resEditaCte}");
                 }
                 // ============================================================
 
