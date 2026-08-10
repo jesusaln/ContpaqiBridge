@@ -7,7 +7,7 @@
 
 **API REST auto-hospedada** que conecta sistemas externos (Laravel en VPS, Hostinger, WebApps, aplicaciones desktop) con el **SDK de CONTPAQi Comercial Premium** instalado localmente. Permite facturar, crear clientes/productos y extraer XMLs/CFDI de manera remota a través de internet.
 
-> **Equivalente funcional a "AR Software - CONTPAQi Comercial API" pero auto-hospedado, sin dependencia de terceros y con 30+ funcionalidades** (incluye webhooks, sync bidireccional y servidor MCP).
+> **API REST completa para CONTPAQi Comercial Premium con más de 30 endpoints**: facturación, timbrado CFDI 4.0, cancelación SAT, sync bidireccional de catálogos, sistema de webhooks y servidor MCP para asistentes IA. Sin dependencias de terceros, sin pago por RFC, sin vendor lock-in.
 
 ## 🧩 ¿Qué incluye este repo?
 
@@ -19,27 +19,28 @@
 | `mcp-server/` | **Servidor MCP** para usar el bridge desde opencode/Claude |
 | `opencode.json` | Configuración para registrar el MCP server en opencode |
 
-## 🤖 MCP Server (usar con opencode / Claude)
+## ✨ Funcionalidades destacadas
+
+- **30+ endpoints REST** para clientes, productos, facturas, documentos
+- **Timbrado CFDI 4.0** ante el SAT con validación previa
+- **Cancelación SAT** con motivos 01/02/03/04
+- **Sync bidireccional** de catálogos con cualquier sistema (Laravel, Node, Python)
+- **Sistema de webhooks** para eventos en tiempo real (timbrado, cancelación, etc.)
+- **Servidor MCP** integrado para Claude y opencode
+- **Reportes SQL**: ventas por periodo, top clientes, top productos
+- **Descarga de CFDI** en XML y PDF
+- **Complementos de pago** PPD con `fSaldarDocumento`
+- **Multi-empresa**: una sola instalación maneja todos tus RFCs
+- **Autenticación por API Key** (timing-safe)
+- **Documentación interactiva** HTML + OpenAPI 3.0
+
+## 🤖 Servidor MCP (usar con opencode / Claude)
 
 El proyecto incluye un servidor MCP (Model Context Protocol) que expone las 26 funcionalidades del bridge como herramientas para asistentes IA. Una vez configurado, puedes pedirle a Claude cosas como:
 
 > *"Crea el cliente CLI-001 con RFC XAXX010101000 y timbra una factura por $1500 al concepto 4"*
 
 Detalles en [mcp-server/README.md](./mcp-server/README.md).
-
-## 🆚 Comparación con servicios comerciales
-
-| Característica | AR Software (pago) | ContpaqiBridge |
-|---|---|---|
-| Costo anual por RFC | $720 USD | **$0** (self-hosted) |
-| Hosting | Servidores de ellos | **Tú controlas** |
-| Código fuente | No disponible | **100% abierto** |
-| Webhooks | Limitado | **Sí, completos** |
-| Sync bidireccional | No documentado | **Sí, con Laravel/Node/Python** |
-| Servidor MCP (Claude/IA) | No | **Incluido** |
-| Latencia | Internet → AR → CONTPAQi | **Directo (red local)** |
-| Vendor lock-in | Sí | **No** |
-| Personalización | No | **Total** |
 
 ## 🛠️ Instalación y Puesta en Marcha
 

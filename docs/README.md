@@ -1,6 +1,6 @@
 # ContpaqiBridge — Documentación
 
-API REST en .NET 6 que expone el SDK de CONTPAQi Comercial Premium a sistemas externos a través de HTTP. Es un reemplazo directo del servicio comercial "AR Software - CONTPAQi Comercial API" pero auto-hospedado y sin costo por RFC.
+API REST en .NET 6 que expone el SDK de CONTPAQi Comercial Premium a sistemas externos a través de HTTP. Es una solución completa y auto-hospedada para integrar la facturación electrónica de CONTPAQi con cualquier aplicación moderna.
 
 ## 📚 Índice de documentación
 
@@ -83,21 +83,6 @@ CONTPAQi Comercial Premium solo se puede automatizar mediante su **SDK COM local
 - ✅ Reportes SQL
 - ✅ MCP server para opencode/Claude
 - ✅ Ejemplos Laravel completos
-
-## 📊 Comparación con AR Software
-
-| Característica | AR Software | ContpaqiBridge |
-|---|---|---|
-| Costo anual | $720 USD/RFC | Gratis |
-| Auto-hospedado | No (su servidor) | Sí (tu máquina) |
-| Código fuente | No | Sí (este repo) |
-| Personalizable | No | Totalmente |
-| Multi-empresa | Sí | Sí |
-| Webhooks | No documentado | Sí |
-| Sync bidireccional | No documentado | Sí |
-| Soporte | Limitado | Tú mismo |
-| Latencia | Internet → AR → CONTPAQi | Directo (red local) |
-| Dependencia externa | Sí | No |
 
 ## 📝 Licencia
 
