@@ -1,0 +1,32 @@
+bin/
+obj/
+.vscode/
+*.user
+*.lock.json
+gh.zip
+gh.exe
+LICENSE
+.vs/
+.vscode/
+*.log
+logs/
+*.bak
+*.swp
+vps_key
+vps_key.pub
+*.pem
+*.key
+
+# Secrets / config local
+appsettings.Local.json
+appsettings.Development.json
+appsettings.json
+secrets.json
+
+# Opencode config con API keys
+opencode.local.json
+
+# Publish outputs
+publish/
+*.zip
+*.tar.gz

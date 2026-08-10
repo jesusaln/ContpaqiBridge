@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "docs/README.md",
+    "docs/API.md",
+    "docs/ARCHITECTURE.md",
+    "mcp-server/README.md"
+  ],
+  "mcp": {
+    "contpaqi-bridge": {
+      "type": "local",
+      "command": ["node", "mcp-server/server.js"],
+      "enabled": true,
+      "environment": {
+        "CONTPAQI_BRIDGE_URL": "http://localhost:5000",
+        "CONTPAQI_API_KEY": "REEMPLAZA_CON_TU_API_KEY_DEL_BRIDGE"
+      },
+      "description": "MCP server que expone el ContpaqiBridge (.NET) como herramientas para asistentes IA."
+    }
+  }
+}
