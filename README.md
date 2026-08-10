@@ -1,8 +1,13 @@
 # ContpaqiBridge 🚀
 
-API REST que conecta sistemas externos (Laravel en VPS, Hostinger, WebApps, aplicaciones desktop) con el **SDK de CONTPAQi Comercial Premium** instalado localmente. Permite facturar, crear clientes/productos y extraer XMLs/CFDI de manera remota a través de internet — **sin pagar licencias por RFC a terceros**.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![.NET 6](https://img.shields.io/badge/.NET-6.0-512BD4)
+![Node.js 20+](https://img.shields.io/badge/Node.js-20+-339933)
+![MCP Compatible](https://img.shields.io/badge/MCP-compatible-blue)
 
-> Equivalente funcional a "AR Software - CONTPAQi Comercial API" pero auto-hospedado y gratuito.
+**API REST auto-hospedada** que conecta sistemas externos (Laravel en VPS, Hostinger, WebApps, aplicaciones desktop) con el **SDK de CONTPAQi Comercial Premium** instalado localmente. Permite facturar, crear clientes/productos y extraer XMLs/CFDI de manera remota a través de internet.
+
+> **Equivalente funcional a "AR Software - CONTPAQi Comercial API" pero auto-hospedado, sin dependencia de terceros y con 30+ funcionalidades** (incluye webhooks, sync bidireccional y servidor MCP).
 
 ## 🧩 ¿Qué incluye este repo?
 
@@ -21,6 +26,20 @@ El proyecto incluye un servidor MCP (Model Context Protocol) que expone las 26 f
 > *"Crea el cliente CLI-001 con RFC XAXX010101000 y timbra una factura por $1500 al concepto 4"*
 
 Detalles en [mcp-server/README.md](./mcp-server/README.md).
+
+## 🆚 Comparación con servicios comerciales
+
+| Característica | AR Software (pago) | ContpaqiBridge |
+|---|---|---|
+| Costo anual por RFC | $720 USD | **$0** (self-hosted) |
+| Hosting | Servidores de ellos | **Tú controlas** |
+| Código fuente | No disponible | **100% abierto** |
+| Webhooks | Limitado | **Sí, completos** |
+| Sync bidireccional | No documentado | **Sí, con Laravel/Node/Python** |
+| Servidor MCP (Claude/IA) | No | **Incluido** |
+| Latencia | Internet → AR → CONTPAQi | **Directo (red local)** |
+| Vendor lock-in | Sí | **No** |
+| Personalización | No | **Total** |
 
 ## 🛠️ Instalación y Puesta en Marcha
 
