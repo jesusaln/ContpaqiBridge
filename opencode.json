@@ -4,7 +4,8 @@
     "docs/README.md",
     "docs/API.md",
     "docs/ARCHITECTURE.md",
-    "mcp-server/README.md"
+    "mcp-server/README.md",
+    "mcp-server/manual_md/README.md"
   ],
   "mcp": {
     "contpaqi-bridge": {
@@ -15,7 +16,7 @@
         "CONTPAQI_BRIDGE_URL": "http://localhost:5000",
         "CONTPAQI_API_KEY": "REEMPLAZA_CON_TU_API_KEY_DEL_BRIDGE"
       },
-      "description": "MCP server que expone el ContpaqiBridge (.NET) como herramientas para asistentes IA."
+      "description": "MCP server que expone el ContpaqiBridge (.NET) y el Manual de Referencia del SDK como herramientas y recursos para asistentes IA."
     }
   }
 }

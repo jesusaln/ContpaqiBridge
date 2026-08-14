@@ -7,50 +7,81 @@ namespace ContpaqiBridge.Controllers
     [Route("api/[controller]")]
     public class WebhooksController : ControllerBase
     {
-        private readonly IContpaqiSdkService _sdkService;
+        private readonly WebhookService _webhooks;
         private readonly ILogger<WebhooksController> _logger;
 
-        public WebhooksController(IContpaqiSdkService sdkService, ILogger<WebhooksController> logger)
+        public WebhooksController(WebhookService webhooks, ILogger<WebhooksController> logger)
         {
-            _sdkService = sdkService;
+            _webhooks = webhooks;
             _logger = logger;
         }
 
         /// <summary>
-        /// Registra un webhook que será llamado cuando ocurra un evento.
-        /// Eventos disponibles: timbrado.exitoso, timbrado.fallido, cancelacion.exitosa,
-        /// cancelacion.fallida, documento.creado, factura.pagada
-        /// Usa "*" para suscribirte a todos los eventos.
+        /// Registra un webhook. Devuelve el secret (solo se muestra UNA VEZ).
+        /// Guárdalo de forma segura: lo necesitarás para verificar la firma HMAC en tu Laravel.
         /// </summary>
         [HttpPost]
-        public IActionResult Registrar([FromBody] WebhookRequest request)
+        public IActionResult Registrar([FromBody] WebhookRequest req)
         {
             try
             {
-                if (string.IsNullOrEmpty(request.Evento) || string.IsNullOrEmpty(request.Url))
+                if (string.IsNullOrEmpty(req.Evento) || string.IsNullOrEmpty(req.Url))
                     return BadRequest(new { success = false, message = "evento y url requeridos" });
 
-                if (!Uri.TryCreate(request.Url, UriKind.Absolute, out _))
+                if (!Uri.TryCreate(req.Url, UriKind.Absolute, out _))
                     return BadRequest(new { success = false, message = "url inválida" });
 
-                ((ContpaqiSdkService)_sdkService).RegistrarWebhook(request.Evento, request.Url);
-                return Ok(new { success = true, message = $"Webhook registrado: {request.Evento} -> {request.Url}" });
+                string secret = _webhooks.Registrar(req.Evento, req.Url);
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Webhook registrado: {req.Evento} -> {req.Url}",
+                    evento = req.Evento,
+                    url = req.Url,
+                    secret, // ⚠️ Mostrar solo en el registro
+                    headersImportantes = new[] {
+                        "X-Contpaqi-Signature: sha256={HMAC_SHA256_DEL_PAYLOAD}",
+                        "X-Contpaqi-Event: nombre_del_evento",
+                        "X-Contpaqi-Delivery: id_unico_del_intento",
+                        "X-Contpaqi-Attempt: numero_de_intento"
+                    },
+                    verificacion = new {
+                        algoritmo = "HMAC-SHA256",
+                        header = "X-Contpaqi-Signature",
+                        formato = "sha256={hex}",
+                        payloadASignar = "cuerpo crudo del request (raw body)"
+                    },
+                    retry = new {
+                        politica = "backoff exponencial",
+                        intentos = new[] { "0s (inmediato)", "60s", "5min", "15min" },
+                        maxIntentos = 4
+                    }
+                });
             }
-            catch (Exception ex) { return StatusCode(500, new { success = false, message = ex.Message }); }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
 
         /// <summary>
-        /// Lista todos los webhooks registrados.
+        /// Lista webhooks registrados (NO muestra el secret por seguridad).
         /// </summary>
         [HttpGet]
         public IActionResult Listar()
         {
-            var webhooks = ((ContpaqiSdkService)_sdkService).ListarWebhooks();
+            var webhooks = _webhooks.Listar();
             return Ok(new
             {
                 success = true,
                 count = webhooks.Count,
-                webhooks = webhooks.Select(w => new { evento = w.evento, url = w.url })
+                webhooks = webhooks.Select(w => new {
+                    evento = w.evento,
+                    url = w.url,
+                    id = w.id,
+                    createdAt = w.createdAt
+                    // secret NO se devuelve
+                })
             });
         }
 
@@ -58,14 +89,36 @@ namespace ContpaqiBridge.Controllers
         /// Emite un webhook manualmente (testing).
         /// </summary>
         [HttpPost("emit")]
-        public IActionResult Emit([FromBody] WebhookEmitRequest request)
+        public IActionResult Emit([FromBody] WebhookEmitRequest req)
         {
             try
             {
-                ((ContpaqiSdkService)_sdkService).EmitirWebhook(request.Evento, request.Payload);
-                return Ok(new { success = true, message = $"Webhook '{request.Evento}' emitido a suscriptores." });
+                _webhooks.Emitir(req.Evento, req.Payload);
+                return Ok(new { success = true, message = $"Webhook '{req.Evento}' encolado." });
             }
-            catch (Exception ex) { return StatusCode(500, new { success = false, message = ex.Message }); }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Elimina un webhook por evento + URL.
+        /// </summary>
+        [HttpDelete]
+        public IActionResult Eliminar([FromQuery] string evento, [FromQuery] string url)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(evento) || string.IsNullOrEmpty(url))
+                    return BadRequest(new { success = false, message = "evento y url requeridos" });
+                _webhooks.Eliminar(evento, url);
+                return Ok(new { success = true, message = $"Webhook eliminado: {evento} -> {url}" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
     }
 

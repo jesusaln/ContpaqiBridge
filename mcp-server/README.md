@@ -1,6 +1,6 @@
 # ContpaqiBridge MCP Server
 
-Servidor MCP (Model Context Protocol) que envuelve el [ContpaqiBridge](../README.md) y expone sus funcionalidades como **tools** para asistentes IA como Claude, opencode, etc.
+Servidor MCP (Model Context Protocol) que envuelve el [ContpaqiBridge](../README.md) y expone sus funcionalidades como **tools** + **resources** para asistentes IA como Claude, opencode, etc.
 
 ## ¿Qué es MCP?
 
@@ -12,21 +12,57 @@ Servidor MCP (Model Context Protocol) que envuelve el [ContpaqiBridge](../README
 │  opencode /    │   {"method":"tools/call",        │  (server.js)      │
 │  cualquier LLM │    "params":{"name":"..."}}      │  Node.js puro     │
 └────────────────┘                                  └────────┬──────────┘
-                                                             │ HTTP + X-Api-Key
-                                                             │
-                                                    ┌────────▼─────────┐
-                                                    │ ContpaqiBridge   │
-                                                    │ (.NET, puerto    │
-                                                    │  5000)           │
-                                                    └──────────────────┘
+                                                              │ HTTP + X-Api-Key
+                                                              │
+                                                     ┌────────▼─────────┐
+                                                     │ ContpaqiBridge   │
+                                                     │ (.NET, puerto    │
+                                                     │  5000)           │
+                                                     └──────────────────┘
 ```
 
 ## ✨ Características
 
 - **Sin dependencias externas**: solo Node.js (>= 18).
-- **26 tools** que cubren todo el bridge: clientes, productos, facturas, sync, reportes, webhooks.
+- **30 tools** que cubren todo el bridge: clientes, productos, facturas, sync, reportes, webhooks y **manual del SDK**.
+- **69 resources** con el contenido completo del Manual de Referencia del SDK de CONTPAQi (vía `resources/list` + `resources/read`).
 - **Compatible** con cualquier cliente MCP: opencode, Claude Desktop, Cursor, Zed, etc.
 - **Type-safe**: cada tool tiene un `inputSchema` JSON-Schema estricto.
+
+## 📚 Manual del SDK embebido
+
+El servidor incluye el [Manual de Referencia del SDK de CONTPAQi®](https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/) como **resources MCP** (scheme `manual://`). El LLM puede consultarlo bajo demanda sin tener que pedirlo de nuevo.
+
+### Como resources (recomendado)
+
+| Método MCP | Uso |
+|---|---|
+| `resources/list` | Lista los 69 capítulos del manual |
+| `resources/read` (uri `manual://<slug>`) | Obtiene el Markdown de un capítulo |
+| `resources/templates/list` | Plantilla `manual://{slug}` |
+
+### Como tools (para clientes sin soporte de resources)
+
+| Tool | Descripción |
+|---|---|
+| `contpaqi_sdk_manual_list` | Lista capítulos, con filtro opcional |
+| `contpaqi_sdk_manual_get` | Obtiene el Markdown por uri o slug |
+| `contpaqi_sdk_manual_search` | Búsqueda full-text en todo el manual |
+| `contpaqi_sdk_manual_overview` | Índice compacto tipo TOC |
+
+### Capítulos destacados
+
+- `manual://introduccion` - Qué es el SDK
+- `manual://requerimientos_para_trabajar_con_el_sdk`
+- `manual://funciones_obligatorias` - Flujo mínimo (Init/Abre/Cierra)
+- `manual://tipos_de_datos_abstractos_del_sdk` - 17 KB de tipos
+- `manual://constantes_del_sdk` - Códigos de error y constantes
+- `manual://manejo_de_errores` - Patrón try/catch con `fError` / `rError`
+- `manual://bajo_nivel___lectura_escritura__1..12` - CRUD de documentos
+- `manual://alto_nivel___lectura_escritura__1..6` - Funciones de alto nivel
+- `manual://casos_practicos` - Ejemplos end-to-end (factura gasolina, REP, carta porte, etc.)
+
+Usa `contpaqi_sdk_manual_list` para descubrir todos.
 
 ## 🚀 Instalación
 
@@ -120,6 +156,10 @@ Similar: command = `node`, args = ruta absoluta al `server.js`.
 | `contpaqi_reporte_top_productos` | Top N productos vendidos |
 | `contpaqi_registrar_webhook` | Registrar webhook |
 | `contpaqi_listar_webhooks` | Listar webhooks |
+| `contpaqi_sdk_manual_list` | Lista capítulos del Manual SDK (con filtro) |
+| `contpaqi_sdk_manual_get` | Obtiene Markdown de un capítulo |
+| `contpaqi_sdk_manual_search` | Búsqueda full-text en el manual |
+| `contpaqi_sdk_manual_overview` | Índice compacto tipo TOC |
 
 ## 🧪 Probar manualmente
 
@@ -156,6 +196,15 @@ Una vez configurado, puedes pedirle a Claude cosas como:
 - **"Haz el flujo completo: vende 1 licencia mensual a Juan Pérez por $1500, timbra y devuélveme el folio y UUID"**
   → Claude usará `contpaqi_flujo_completo` en una sola llamada.
 
+- **"¿Cómo registro un CFDI de relación desde el SDK?"**
+  → Claude consultará el resource `manual://registrar_una_relacion_cfdi_mediante_uuid`.
+
+- **"¿Cuáles son las funciones obligatorias para inicializar el SDK?"**
+  → Claude usará `contpaqi_sdk_manual_get` con slug `funciones_obligatorias`.
+
+- **"Busca en el manual cómo se maneja el error 42"**
+  → Claude llamará `contpaqi_sdk_manual_search` con query `42`.
+
 ## 🔧 Personalizar
 
 Edita `server.js` y agrega más tools siguiendo el patrón:
@@ -175,6 +224,25 @@ Edita `server.js` y agrega más tools siguiendo el patrón:
 }
 ```
 
+## 🔄 Actualizar el manual embebido
+
+El manual se descarga y convierte desde
+`https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/`.
+
+Para re-importarlo (por ejemplo cuando salga una nueva versión):
+
+```bash
+# 1. Descargar las páginas HTML al directorio sdk_pages/
+node convert_manual.js --download
+
+# 2. Convertir HTML → Markdown y regenerar el índice
+node convert_manual.js
+
+# 3. Reiniciar el servidor MCP para que recargue el índice
+```
+
+Los archivos `.md` resultantes quedan en `manual_md/` y se sirven como resources.
+
 ## ⚙️ Troubleshooting
 
 ### El server no responde
@@ -183,6 +251,7 @@ Verifica:
 1. El bridge está corriendo (`curl http://localhost:5000/api/Status/health`).
 2. `CONTPAQI_API_KEY` coincide con `Bridge:ApiKey` en `appsettings.json`.
 3. Node.js >= 18 instalado (`node --version`).
+4. Si los resources del manual no aparecen, ejecuta `node convert_manual.js` para regenerar `manual_md/index.json`.
 
 ### "Tool no encontrada"
 

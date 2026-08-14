@@ -1,0 +1,485 @@
+[
+  {
+    "uri": "manual://_recomendaciones_para_el_manejo_de_cadenas",
+    "name": "Recomendaciones para el manejo de cadenas",
+    "file": "_recomendaciones_para_el_manejo_de_cadenas.md",
+    "size": 989,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/_recomendaciones_para_el_manejo_de_cadenas.html"
+  },
+  {
+    "uri": "manual://alta_de_direccion_de_cliente_mediante_sdk",
+    "name": "Alta de dirección de cliente mediante SDK",
+    "file": "alta_de_direccion_de_cliente_mediante_sdk.md",
+    "size": 2305,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/alta_de_direccion_de_cliente_mediante_sdk.html"
+  },
+  {
+    "uri": "manual://alto_nivel___busqueda_navegacion",
+    "name": "Alto nivel - Búsqueda/Navegación",
+    "file": "alto_nivel___busqueda_navegacion.md",
+    "size": 941,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/alto_nivel___busqueda_navegacion.html"
+  },
+  {
+    "uri": "manual://alto_nivel___lectura_escritura__1",
+    "name": "Alto nivel – Lectura/Escritura",
+    "file": "alto_nivel___lectura_escritura__1.md",
+    "size": 19511,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/alto_nivel___lectura_escritura__1.html"
+  },
+  {
+    "uri": "manual://alto_nivel___lectura_escritura__2",
+    "name": "Alto nivel – Lectura/Escritura",
+    "file": "alto_nivel___lectura_escritura__2.md",
+    "size": 8416,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/alto_nivel___lectura_escritura__2.html"
+  },
+  {
+    "uri": "manual://alto_nivel___lectura_escritura__3",
+    "name": "Alto nivel – Lectura/Escritura",
+    "file": "alto_nivel___lectura_escritura__3.md",
+    "size": 3628,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/alto_nivel___lectura_escritura__3.html"
+  },
+  {
+    "uri": "manual://alto_nivel___lectura_escritura__4",
+    "name": "Alto nivel – Lectura/Escritura",
+    "file": "alto_nivel___lectura_escritura__4.md",
+    "size": 6903,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/alto_nivel___lectura_escritura__4.html"
+  },
+  {
+    "uri": "manual://alto_nivel___lectura_escritura__5",
+    "name": "Alto nivel – Lectura/Escritura",
+    "file": "alto_nivel___lectura_escritura__5.md",
+    "size": 5382,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/alto_nivel___lectura_escritura__5.html"
+  },
+  {
+    "uri": "manual://alto_nivel___lectura_escritura__6",
+    "name": "Alto nivel – Lectura/Escritura",
+    "file": "alto_nivel___lectura_escritura__6.md",
+    "size": 2924,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/alto_nivel___lectura_escritura__6.html"
+  },
+  {
+    "uri": "manual://apertura___cierre",
+    "name": "Apertura / Cierre",
+    "file": "apertura___cierre.md",
+    "size": 1193,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/apertura___cierre.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___busqueda_navegacion_1",
+    "name": "Bajo nivel - Búsqueda/Navegación",
+    "file": "bajo_nivel___busqueda_navegacion_1.md",
+    "size": 5065,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___busqueda_navegacion_1.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___busqueda_navegacion_2",
+    "name": "Bajo nivel - Búsqueda/Navegación",
+    "file": "bajo_nivel___busqueda_navegacion_2.md",
+    "size": 7599,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___busqueda_navegacion_2.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___busqueda_navegacion_3",
+    "name": "Bajo nivel - Búsqueda/Navegación",
+    "file": "bajo_nivel___busqueda_navegacion_3.md",
+    "size": 7433,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___busqueda_navegacion_3.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___busqueda_navegacion_4",
+    "name": "Bajo nivel - Búsqueda/Navegación",
+    "file": "bajo_nivel___busqueda_navegacion_4.md",
+    "size": 5739,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___busqueda_navegacion_4.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___busqueda_navegacion_5",
+    "name": "Bajo nivel - Búsqueda/Navegación",
+    "file": "bajo_nivel___busqueda_navegacion_5.md",
+    "size": 7558,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___busqueda_navegacion_5.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___busqueda_navegacion_6",
+    "name": "Bajo nivel - Búsqueda/Navegación",
+    "file": "bajo_nivel___busqueda_navegacion_6.md",
+    "size": 5093,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___busqueda_navegacion_6.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___busqueda_navegacion_7",
+    "name": "Bajo nivel - Búsqueda/Navegación",
+    "file": "bajo_nivel___busqueda_navegacion_7.md",
+    "size": 5348,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___busqueda_navegacion_7.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___busqueda_navegacion_8",
+    "name": "Bajo nivel - Búsqueda/Navegación",
+    "file": "bajo_nivel___busqueda_navegacion_8.md",
+    "size": 7255,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___busqueda_navegacion_8.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__1",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__1.md",
+    "size": 20622,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__1.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__10",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__10.md",
+    "size": 3188,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__10.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__11",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__11.md",
+    "size": 5828,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__11.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__12",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__12.md",
+    "size": 6229,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__12.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__2",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__2.md",
+    "size": 15816,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__2.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__3",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__3.md",
+    "size": 10502,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__3.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__4",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__4.md",
+    "size": 11750,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__4.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__5",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__5.md",
+    "size": 9589,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__5.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__6",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__6.md",
+    "size": 7121,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__6.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__7",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__7.md",
+    "size": 3175,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__7.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__8",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__8.md",
+    "size": 5160,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__8.html"
+  },
+  {
+    "uri": "manual://bajo_nivel___lectura_escritura__9",
+    "name": "Bajo nivel – Lectura/Escritura",
+    "file": "bajo_nivel___lectura_escritura__9.md",
+    "size": 4946,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/bajo_nivel___lectura_escritura__9.html"
+  },
+  {
+    "uri": "manual://casos_practicos",
+    "name": "Casos prácticos",
+    "file": "casos_practicos.md",
+    "size": 17,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/casos_practicos.html"
+  },
+  {
+    "uri": "manual://constantes_del_sdk",
+    "name": "Constantes del SDK",
+    "file": "constantes_del_sdk.md",
+    "size": 2769,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/constantes_del_sdk.html"
+  },
+  {
+    "uri": "manual://cuando_usar_funciones_de_alto_nivel_y_cuando_de_bajo_nivel",
+    "name": "Cuándo usar funciones de alto nivel y cuando de bajo nivel",
+    "file": "cuando_usar_funciones_de_alto_nivel_y_cuando_de_bajo_nivel.md",
+    "size": 2492,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/cuando_usar_funciones_de_alto_nivel_y_cuando_de_bajo_nivel.html"
+  },
+  {
+    "uri": "manual://ejemplos",
+    "name": "Ejemplos",
+    "file": "ejemplos.md",
+    "size": 1851,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/ejemplos.html"
+  },
+  {
+    "uri": "manual://emision_del_complemento_de_carta_porte_3_1_mediante_sdk",
+    "name": "Emisión del complemento de Carta Porte 3.1 mediante SDK",
+    "file": "emision_del_complemento_de_carta_porte_3_1_mediante_sdk.md",
+    "size": 2414,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/emision_del_complemento_de_carta_porte_3_1_mediante_sdk.html"
+  },
+  {
+    "uri": "manual://emitir_factura_de_gasolina__producto_con_ieps_",
+    "name": "Emitir factura de gasolina (producto con IEPS)",
+    "file": "emitir_factura_de_gasolina__producto_con_ieps_.md",
+    "size": 2626,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/emitir_factura_de_gasolina__producto_con_ieps_.html"
+  },
+  {
+    "uri": "manual://equivalencias_de_tipos_de_datos",
+    "name": "Equivalencias de tipos de datos",
+    "file": "equivalencias_de_tipos_de_datos.md",
+    "size": 2295,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/equivalencias_de_tipos_de_datos.html"
+  },
+  {
+    "uri": "manual://escenario_1__documento_con_complemento_previamente_creado_en_el_sistema",
+    "name": "escenario_1__documento_con_complemento_previamente_creado_en_el_sistema",
+    "file": "escenario_1__documento_con_complemento_previamente_creado_en_el_sistema.md",
+    "size": 2121,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/escenario_1__documento_con_complemento_previamente_creado_en_el_sistema.html"
+  },
+  {
+    "uri": "manual://escenario_2__documento_sin_complemento_previamente_creado_en_el_sistema",
+    "name": "escenario_2__documento_sin_complemento_previamente_creado_en_el_sistema",
+    "file": "escenario_2__documento_sin_complemento_previamente_creado_en_el_sistema.md",
+    "size": 6982,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/escenario_2__documento_sin_complemento_previamente_creado_en_el_sistema.html"
+  },
+  {
+    "uri": "manual://funciones_de_addendas",
+    "name": "Funciones de addendas",
+    "file": "funciones_de_addendas.md",
+    "size": 23,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_addendas.html"
+  },
+  {
+    "uri": "manual://funciones_de_clientes_proveedores",
+    "name": "Funciones de clientes/proveedores",
+    "file": "funciones_de_clientes_proveedores.md",
+    "size": 35,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_clientes_proveedores.html"
+  },
+  {
+    "uri": "manual://funciones_de_conceptos_de_documentos",
+    "name": "Funciones de conceptos de documentos",
+    "file": "funciones_de_conceptos_de_documentos.md",
+    "size": 38,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_conceptos_de_documentos.html"
+  },
+  {
+    "uri": "manual://funciones_de_costo_historico",
+    "name": "Funciones de costo histórico",
+    "file": "funciones_de_costo_historico.md",
+    "size": 30,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_costo_historico.html"
+  },
+  {
+    "uri": "manual://funciones_de_direcciones",
+    "name": "Funciones de direcciones",
+    "file": "funciones_de_direcciones.md",
+    "size": 26,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_direcciones.html"
+  },
+  {
+    "uri": "manual://funciones_de_documentos",
+    "name": "Funciones de documentos",
+    "file": "funciones_de_documentos.md",
+    "size": 25,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_documentos.html"
+  },
+  {
+    "uri": "manual://funciones_de_empresas",
+    "name": "Funciones de empresas",
+    "file": "funciones_de_empresas.md",
+    "size": 23,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_empresas.html"
+  },
+  {
+    "uri": "manual://funciones_de_existencias",
+    "name": "Funciones de existencias",
+    "file": "funciones_de_existencias.md",
+    "size": 26,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_existencias.html"
+  },
+  {
+    "uri": "manual://funciones_de_movimientos",
+    "name": "Funciones de movimientos",
+    "file": "funciones_de_movimientos.md",
+    "size": 26,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_movimientos.html"
+  },
+  {
+    "uri": "manual://funciones_de_parametros",
+    "name": "Funciones de parámetros",
+    "file": "funciones_de_parametros.md",
+    "size": 25,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_parametros.html"
+  },
+  {
+    "uri": "manual://funciones_de_productos",
+    "name": "Funciones de productos",
+    "file": "funciones_de_productos.md",
+    "size": 24,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_productos.html"
+  },
+  {
+    "uri": "manual://funciones_de_timbrado",
+    "name": "Funciones de timbrado",
+    "file": "funciones_de_timbrado.md",
+    "size": 1664,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_de_timbrado.html"
+  },
+  {
+    "uri": "manual://funciones_del_catalogo_de_clasificaciones",
+    "name": "Funciones del catálogo de clasificaciones",
+    "file": "funciones_del_catalogo_de_clasificaciones.md",
+    "size": 43,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_del_catalogo_de_clasificaciones.html"
+  },
+  {
+    "uri": "manual://funciones_del_catalogo_de_valores_de_clasificaciones",
+    "name": "Funciones del catálogo de valores de clasificaciones",
+    "file": "funciones_del_catalogo_de_valores_de_clasificaciones.md",
+    "size": 54,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_del_catalogo_de_valores_de_clasificaciones.html"
+  },
+  {
+    "uri": "manual://funciones_generales",
+    "name": "Funciones generales",
+    "file": "funciones_generales.md",
+    "size": 21,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_generales.html"
+  },
+  {
+    "uri": "manual://funciones_obligatorias",
+    "name": "Funciones obligatorias",
+    "file": "funciones_obligatorias.md",
+    "size": 1481,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/funciones_obligatorias.html"
+  },
+  {
+    "uri": "manual://inicializacion___terminacion",
+    "name": "Inicialización / Terminación",
+    "file": "inicializacion___terminacion.md",
+    "size": 2914,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/inicializacion___terminacion.html"
+  },
+  {
+    "uri": "manual://introduccion",
+    "name": "Introducción",
+    "file": "introduccion.md",
+    "size": 1277,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/introduccion.html"
+  },
+  {
+    "uri": "manual://manejo_de_errores",
+    "name": "Manejo de errores",
+    "file": "manejo_de_errores.md",
+    "size": 1087,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/manejo_de_errores.html"
+  },
+  {
+    "uri": "manual://navegacion",
+    "name": "Navegación",
+    "file": "navegacion.md",
+    "size": 3004,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/navegacion.html"
+  },
+  {
+    "uri": "manual://portada",
+    "name": "Manual de Referencia del SDK de los sistemas CONTPAQi®",
+    "file": "portada.md",
+    "size": 98,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/portada.html"
+  },
+  {
+    "uri": "manual://recomendaciones_y_consideraciones_importantes",
+    "name": "Recomendaciones y consideraciones importantes",
+    "file": "recomendaciones_y_consideraciones_importantes.md",
+    "size": 2195,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/recomendaciones_y_consideraciones_importantes.html"
+  },
+  {
+    "uri": "manual://registrar_medicamentos_en_el_modulo_de_inventario__productos_con_lote_",
+    "name": "Registrar medicamentos en el módulo de inventario (productos con lote)",
+    "file": "registrar_medicamentos_en_el_modulo_de_inventario__productos_con_lote_.md",
+    "size": 3886,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/registrar_medicamentos_en_el_modulo_de_inventario__productos_con_lote_.html"
+  },
+  {
+    "uri": "manual://registrar_una_relacion_cfdi_mediante_uuid",
+    "name": "Registrar una relación CFDI mediante UUID",
+    "file": "registrar_una_relacion_cfdi_mediante_uuid.md",
+    "size": 2632,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/registrar_una_relacion_cfdi_mediante_uuid.html"
+  },
+  {
+    "uri": "manual://registrar_y_saldar_pagos__rep_",
+    "name": "Registrar y saldar pagos (REP)",
+    "file": "registrar_y_saldar_pagos__rep_.md",
+    "size": 5999,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/registrar_y_saldar_pagos__rep_.html"
+  },
+  {
+    "uri": "manual://requerimientos_para_trabajar_con_el_sdk",
+    "name": "Requerimientos para trabajar con el SDK",
+    "file": "requerimientos_para_trabajar_con_el_sdk.md",
+    "size": 1910,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/requerimientos_para_trabajar_con_el_sdk.html"
+  },
+  {
+    "uri": "manual://timbrar_documentos",
+    "name": "Timbrar documentos",
+    "file": "timbrar_documentos.md",
+    "size": 538,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/timbrar_documentos.html"
+  },
+  {
+    "uri": "manual://tipos_de_datos_abstractos_del_sdk",
+    "name": "Tipos de datos abstractos del SDK",
+    "file": "tipos_de_datos_abstractos_del_sdk.md",
+    "size": 17190,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/tipos_de_datos_abstractos_del_sdk.html"
+  },
+  {
+    "uri": "manual://trabajando_con_documentos",
+    "name": "Trabajando con documentos",
+    "file": "trabajando_con_documentos.md",
+    "size": 1390,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/trabajando_con_documentos.html"
+  },
+  {
+    "uri": "manual://trabajando_con_productos_o_clientes",
+    "name": "Trabajando con productos o clientes",
+    "file": "trabajando_con_productos_o_clientes.md",
+    "size": 498,
+    "source": "https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/trabajando_con_productos_o_clientes.html"
+  }
+]

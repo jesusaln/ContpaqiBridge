@@ -1,21 +1,77 @@
-MIT License
+Business Source License 1.1
 
-Copyright (c) 2026 Jesus Antonio Lopez Noriega
+Licensor:      Jesus Antonio Lopez Noriega
+Licensed Work: ContpaqiBridge v1.0.0 and later versions
+               (see git history: https://github.com/jesusaln/ContpaqiBridge)
+Change Date:   2029-08-10
+Change License: MIT License (https://opensource.org/licenses/MIT)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+================================================================================
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Terms
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+The Licensor hereby grants you the right to copy, modify, create derivative
+works, redistribute, and make non-production use of the Licensed Work.
+
+The Licensor may make an Additional Use Grant, above, permitting limited
+production use. "Production Use" means use of the Licensed Work that is
+intended for or results in commercial advantage or monetary compensation to
+you or others. "Non-Production Use" means use of the Licensed Work that is
+not intended for or does not result in commercial advantage or monetary
+compensation to you or others.
+
+For clarity, the following are NOT permitted under this license without a separate
+written commercial license agreement with the Licensor:
+
+  (a) Using the Licensed Work to provide services to third parties
+      (SaaS, hosting, installation, configuration, support) for compensation.
+
+  (b) Bundling the Licensed Work into a product or service that is sold,
+      licensed, or offered for use by third parties, whether for a fee,
+      subscription, or other consideration.
+
+  (c) Using the Licensed Work internally within an organization that derives
+      revenue from its operation, where the Licensee benefits commercially
+      from such use.
+
+  (d) Reselling, relicensing, or redistributing the Licensed Work, in whole
+      or in part, alone or as part of any product or service.
+
+The following ARE permitted under this license, free of charge:
+
+  (a) Personal evaluation, testing, and development on your own machines.
+
+  (b) Academic research and educational use in non-commercial institutions.
+
+  (c) Open-source projects distributed under licenses compatible with the
+      Change License (MIT) that are themselves non-commercial.
+
+  (d) Modifications and derivative works for personal, non-production use.
+
+================================================================================
+
+Additional Use Grant
+
+None. All Production Use requires a separate commercial license.
+
+For commercial licensing, contact: contacto@contpaqibridge.com
+(or visit https://github.com/jesusaln/ContpaqiBridge for current contact info)
+
+================================================================================
+
+Notice
+
+The Licensor may, at its sole discretion, release the Licensed Work under
+different terms, including different Change Dates or Change Licenses, by
+issuing a new version of the Licensed Work.
+
+On the Change Date listed above, this license automatically converts to the
+Change License, after which the restrictions above no longer apply.
+
+THE LICENSED WORK IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE LICENSED WORK OR THE USE OR OTHER DEALINGS IN THE
+LICENSED WORK.

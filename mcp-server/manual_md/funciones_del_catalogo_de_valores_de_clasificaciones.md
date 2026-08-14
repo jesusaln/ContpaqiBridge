@@ -1,0 +1,1 @@
+# Funciones del catálogo de valores de clasificaciones

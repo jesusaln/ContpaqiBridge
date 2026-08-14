@@ -26,8 +26,12 @@ namespace ContpaqiBridge.Services
         private readonly object _lock = new object();
 
         // ============ P/Invoke a MGWServicios.dll ============
-        // Según el manual oficial, el flujo es:
-        // SetCurrentDirectory(DirectorioBase) → fSetNombrePAQ → fAbreEmpresa → (proceso) → fCierraEmpresa → fTerminaSDK
+        // Según el manual oficial de CONTPAQi Comercial Premium, el flujo correcto es:
+        // SetCurrentDirectory(DirectorioBase) → fInicializaSDK → fAbreEmpresa → (proceso) → fCierraEmpresa → fTerminaSDK
+        // (fSetNombrePAQ es solo para cambiar el sistema destino; NO es la inicialización)
+
+        [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
+        private static extern int fInicializaSDK();
 
         [DllImport("MGWServicios.dll", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         private static extern int fSetNombrePAQ(string aSistema);
@@ -375,9 +379,10 @@ namespace ContpaqiBridge.Services
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool SetDllDirectory(string lpPathName);
 
-        public ContpaqiSdkService(IConfiguration config, ILogger<ContpaqiSdkService> logger)
+        public ContpaqiSdkService(IConfiguration config, ILogger<ContpaqiSdkService> logger, WebhookService webhooks)
         {
             _logger = logger;
+            _webhooks = webhooks;
             _empresasPath = config["Contpaqi:EmpresasPath"] ?? "";
             _defaultUsuario = config["Contpaqi:DefaultUsuario"] ?? "";
             _defaultClave = config["Contpaqi:DefaultClave"] ?? "";
@@ -503,8 +508,10 @@ namespace ContpaqiBridge.Services
         }
 
         /// <summary>
-        /// Inicializa el SDK usando el flujo oficial del manual:
-        /// SetCurrentDirectory(DirectorioBase) → fSetNombrePAQ("CONTPAQ I Comercial")
+        /// Inicializa el SDK usando el flujo oficial del manual de CONTPAQi Comercial Premium:
+        /// SetCurrentDirectory(DirectorioBase) → fInicializaSDK()
+        /// NOTA: fSetNombrePAQ SOLO se usa si se quiere cambiar el sistema destino (ej: Factura Electrónica).
+        ///       Para Comercial Premium por defecto, se usa fInicializaSDK() directamente.
         /// </summary>
         public bool InicializarSDK()
         {
@@ -517,7 +524,7 @@ namespace ContpaqiBridge.Services
                 return true;
             }
 
-            try 
+            try
             {
                 if (string.IsNullOrEmpty(_directorioBase))
                 {
@@ -526,22 +533,24 @@ namespace ContpaqiBridge.Services
                     return false;
                 }
 
-                // Asegurar que estamos en el directorio correcto
+                // Paso 1: SetCurrentDirectory (asegurar cwd en directorio del SDK)
                 _logger.LogInformation($"SetCurrentDirectory({_directorioBase})");
                 SetCurrentDirectory(_directorioBase);
 
-                // Paso 1: fSetNombrePAQ (esto ES la inicialización según el manual)
-                _logger.LogInformation("Llamando a fSetNombrePAQ('CONTPAQ I Comercial')...");
-                int result = fSetNombrePAQ("CONTPAQ I Comercial");
+                // Paso 2: fInicializaSDK() — Función OBLIGATORIA según el manual.
+                // Inicializa el SDK de CONTPAQi Comercial Premium. Establece la conexión
+                // con la base de datos. Sin esta llamada, las funciones SDK fallan.
+                _logger.LogInformation("Llamando a fInicializaSDK()...");
+                int result = fInicializaSDK();
                 _lastInitResult = result;
 
                 if (result != 0)
                 {
-                    _logger.LogError($"fSetNombrePAQ falló con código: {result}. Mensaje: {GetUltimoError(result)}");
+                    _logger.LogError($"fInicializaSDK falló con código: {result}. Mensaje: {GetUltimoError(result)}");
                     return false;
                 }
 
-                _logger.LogInformation("SDK inicializado correctamente (fSetNombrePAQ retornó 0)");
+                _logger.LogInformation("SDK inicializado correctamente (fInicializaSDK retornó 0)");
                 _isInitialized = true;
                 return true;
             }
@@ -557,6 +566,36 @@ namespace ContpaqiBridge.Services
                 _logger.LogError(ex, $"Excepción inesperada: {ex.Message}");
                 return false;
             }
+            }
+        }
+
+        /// <summary>
+        /// Termina la sesión del SDK liberando todos los recursos.
+        /// ⚠️ OBLIGATORIO llamar al final del proceso completo (manual sección "Inicialización / Terminación").
+        /// Si no se llama, el servicio puede quedarse colgado y afectar los siguientes inicios de sesión.
+        /// </summary>
+        public bool TerminarSDK()
+        {
+            lock (_lock)
+            {
+                if (!_isInitialized)
+                {
+                    return true;
+                }
+
+                try
+                {
+                    _logger.LogInformation("Llamando a fTerminaSDK()...");
+                    fTerminaSDK();
+                    _isInitialized = false;
+                    _logger.LogInformation("SDK terminado correctamente");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error al terminar SDK");
+                    return false;
+                }
             }
         }
 
@@ -668,7 +707,7 @@ namespace ContpaqiBridge.Services
             string codigoConcepto,
             string codigoCliente,
             List<(string codigo, double cantidad, double precio, string nombre, string unidadMedida, string claveSAT)> productos,
-            string usoCFDI = "G01",
+            string usoCFDI = "G03",
             string formaPago = "99",
             string metodoPago = "PUE",
             string clienteRazonSocial = "",
@@ -839,7 +878,8 @@ namespace ContpaqiBridge.Services
                 if (string.IsNullOrEmpty(formaPago)) formaPago = "99";
 
                 // 6. Setear campos en ORDEN ESPECÍFICO (como lo pide CONTPAQi manualmente)
-                string fechaHoy = DateTime.Now.ToString("MM/dd/yyyy"); 
+                // Para CFECHA usar fecha UTC (lo que espera el PAC).
+                string fechaHoy = DateTime.UtcNow.ToString("MM/dd/yyyy");
                 
                 var camposDocumento = new List<(string campo, string valor)>
                 {
@@ -857,7 +897,9 @@ namespace ContpaqiBridge.Services
                 };
 
                 // Forzar Uso CFDI si viene vacío
-                if (string.IsNullOrEmpty(usoCFDI)) usoCFDI = "G01";
+                // Default: G03 (Gastos en general) en lugar de G01 (Adquisición de mercaderías)
+                // porque G03 es el más común para cliente final con regimen 612/601.
+                if (string.IsNullOrEmpty(usoCFDI)) usoCFDI = "G03";
                 
                 // Mapeo manual de Forma de Pago a ID interno (basado en SQL: 01->2, 03->1)
                 // Esto es un intento final si CFORMAPAGO falla
@@ -872,6 +914,22 @@ namespace ContpaqiBridge.Services
 
                 // CFDI 4.0: Exportacion (01 = No aplica)
                 camposDocumento.Add(("CEXPORTACION", "01"));
+
+                // CFDI 4.0: Si el receptor es PÚBLICO EN GENERAL (RFC XAXX010101000)
+                // SAT REQUIERE el nodo InformacionGlobal (Periodicidad, Meses, Año).
+                // Sin este nodo, el PAC rechaza el timbrado.
+                if (string.Equals(codigoCliente, "PG", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Defaults: Periodicidad Mensual (04), Mes actual, Año actual
+                    string periodicidad = "04"; // 04 = Mensual (01=Diario,02=Semanal,03=Quincenal,04=Mensual,05=Bimestral)
+                    string meses = DateTime.Now.ToString("MM"); // Mes actual (01-12)
+                    string anio = DateTime.Now.ToString("yyyy");
+
+                    camposDocumento.Add(("CPERIODICIDAD", periodicidad));
+                    camposDocumento.Add(("CMESES", meses));
+                    camposDocumento.Add(("CANIO", anio));
+                    _logger.LogInformation($"InformacionGlobal agregado para PG: Periodicidad={periodicidad} Meses={meses} Anio={anio}");
+                }
 
                 // El Uso de CFDI envialo siempre
                 _logger.LogInformation($"fSetDatoDocumento('CUSOCFDI', '{usoCFDI}')");
@@ -1258,7 +1316,7 @@ PRINT @end;";
                             string rfc = rfcSb.ToString().Trim();
 
                             StringBuilder regimenSb = new StringBuilder(10);
-                            fLeeDatoCteProv("CREGIMENFISCAL", regimenSb, 10);
+                            fLeeDatoCteProv("CREGIMFISC", regimenSb, 10);
                             string regimen = regimenSb.ToString().Trim();
 
                             StringBuilder cpSb = new StringBuilder(10);
@@ -1936,8 +1994,8 @@ PRINT @end;";
                     
                     if (!string.IsNullOrEmpty(regimenFiscal))
                     {
-                        _logger.LogInformation($"Seteando Régimen Fiscal (CREGIMENFISCAL): {regimenFiscal}");
-                        fSetDatoCteProv("CREGIMENFISCAL", regimenFiscal);
+                        _logger.LogInformation($"Seteando Régimen Fiscal (CREGIMFISC): {regimenFiscal}");
+                        fSetDatoCteProv("CREGIMFISC", regimenFiscal);
                     }
                     
                     if (!string.IsNullOrEmpty(usoCFDI))
@@ -2287,15 +2345,15 @@ UNPIVOT ([col] FOR col_name IN ([col1])) p;
 DROP TABLE #tmp;
 ";
             // Para evitar UNPIVOT complejo, uso otro enfoque: query directo + headers vía PRINT
-            // Más simple: ejecutar la query y separar headers vs datos con -h -1 y otro truco
-            // Hago un método más simple: leer primera línea como headers, resto como datos
+            // Ejecución: usamos -h 1 (sqlcmd emite headers + línea de guiones + datos).
+            // Esto es CRÍTICO: con -h -1 sqlcmd suprime los headers y el helper asume
+            // que línea 0 son headers → producía count=0 siempre.
             var result = new List<Dictionary<string, object>>();
 
-            // Por simplicidad y robustez, ejecuto la query con -W -s "|" y separo la primera línea (headers) del resto (datos)
             var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = @"C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\SQLCMD.EXE",
-                Arguments = $"-S \"{_instanceSql}\" -U \"{_sqlUser}\" -P \"{_sqlPassword}\" -d \"{bd}\" -Q \"{sqlQuery.Replace("\"", "\\\"").Replace("|", "^|")}\" -W -s \"|\" -h -1",
+                Arguments = $"-S \"{_instanceSql}\" -U \"{_sqlUser}\" -P \"{_sqlPassword}\" -d \"{bd}\" -Q \"{sqlQuery.Replace("\"", "\\\"").Replace("|", "^|")}\" -W -s \"|\" -h 1",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -2316,8 +2374,31 @@ DROP TABLE #tmp;
 
             var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(l => l.Trim())
-                .Where(l => !string.IsNullOrEmpty(l) && !l.Contains("rows affected") && !l.StartsWith("WARNING") && !l.StartsWith("Changed database context"))
+                .Where(l => !string.IsNullOrEmpty(l))
                 .ToList();
+            if (lines.Count == 0) return result;
+
+            // Filtro la línea de guiones que sqlcmd emite entre headers y datos (ej: "--------------|------------").
+            lines = lines.Where(l => !System.Text.RegularExpressions.Regex.IsMatch(l, @"^[\s\|\-]+$")).ToList();
+            // Quitar filas de "rows affected", warnings, etc.
+            lines = lines.Where(l => !l.Contains("rows affected") && !l.StartsWith("WARNING") && !l.StartsWith("Changed database context")).ToList();
+            // Si la primera línea son los headers (mismos nombres que las columnas del SELECT), la descartamos.
+            if (lines.Count >= 2 && lines[0].Contains('|'))
+            {
+                string primera = lines[0].Trim();
+                // Heurística: si la primera línea contiene palabras típicas de header (CCODIGO, CRAZONSOCIAL, CIDDOCUMENTO, etc.)
+                // y NO tiene el formato típico de un dato (no empieza con número de columna ID válido),
+                // la tratamos como header.
+                bool pareceHeader = primera.Contains("CCODIGO") || primera.Contains("CRAZONSOCIAL")
+                    || primera.Contains("CNOMBREPRODUCTO") || primera.Contains("CIDDOCUMENTO")
+                    || primera.Contains("CSERIEDOCUMENTO") || primera.Contains("CFOLIO")
+                    || primera.Contains("CTIMESTAMP") || primera.Contains("CTOTAL")
+                    || primera.Contains("CRAZONSOCIAL") || primera.Contains("CTIMBRADO");
+                if (pareceHeader)
+                {
+                    lines = lines.Skip(1).ToList();
+                }
+            }
             if (lines.Count == 0) return result;
 
             // Primera línea = headers
@@ -2803,15 +2884,26 @@ PRINT '~END~';";
         // =====================================================================
 
         // Lista de webhooks en memoria (también se persisten a disco en webhookService)
-        private readonly List<(string evento, string url)> _webhooks = new();
-        private readonly object _webhooksLock = new();
+        private readonly WebhookService _webhooks;
 
         /// <summary>
         /// Lista TODOS los clientes de la empresa leyendo desde SQL Server.
         /// Devuelve un diccionario con los campos clave para sincronizar con Laravel/MySQL.
         /// </summary>
         public List<Dictionary<string, object>> ListarClientesTodos(string rutaEmpresa, int limite = 500)
-            => EjecutarListadoClientes(rutaEmpresa, desde: null, limite);
+        {
+            try
+            {
+                string bd = Path.GetFileName(rutaEmpresa.TrimEnd('\\'));
+                string sql = $"SELECT TOP {limite} CCODIGOCLIENTE, CRAZONSOCIAL, CRFC, CUSOCFDI, CREGIMFISC, CESTATUS, CEMAIL1, CWHATSAPP, CTIMESTAMP, CCODIGOALTERNO, CFECHAALTA FROM admClientes WHERE CESTATUS = 1 AND CCODIGOCLIENTE <> '' ORDER BY CCODIGOCLIENTE";
+                return EjecutarSqlCmdListaEnBd(bd, sql);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en ListarClientesTodos");
+                return new List<Dictionary<string, object>>();
+            }
+        }
 
         /// <summary>
         /// Lista clientes modificados desde una fecha (sincronización incremental).
@@ -2896,7 +2988,19 @@ PRINT @end;";
         /// Lista TODOS los productos del catálogo de la empresa.
         /// </summary>
         public List<Dictionary<string, object>> ListarProductosTodos(string rutaEmpresa, int limite = 500)
-            => EjecutarListadoProductos(rutaEmpresa, desde: null, limite);
+        {
+            try
+            {
+                string bd = Path.GetFileName(rutaEmpresa.TrimEnd('\\'));
+                string sql = $"SELECT TOP {limite} CCODIGOPRODUCTO, CNOMBREPRODUCTO, CPRECIO1, CPRECIO2, CSTATUSPRODUCTO, CCLAVESAT, CIDUNIDADNOCONVERTIBLE, CTIMESTAMP, CFECHAALTAPRODUCTO FROM admProductos WHERE CSTATUSPRODUCTO = 1 AND CCODIGOPRODUCTO <> '' ORDER BY CCODIGOPRODUCTO";
+                return EjecutarSqlCmdListaEnBd(bd, sql);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en ListarProductosTodos");
+                return new List<Dictionary<string, object>>();
+            }
+        }
 
         /// <summary>
         /// Lista productos modificados desde una fecha (sincronización incremental).
@@ -3233,64 +3337,28 @@ PRINT @end;";
             return lista;
         }
 
-        // =====================================================================
-        // ============ WEBHOOKS ================================================
-        // =====================================================================
+// =====================================================================
+// ============ WEBHOOKS ================================================
+// =====================================================================
 
-        public void RegistrarWebhook(string evento, string url)
+public void RegistrarWebhook(string evento, string url)
         {
-            lock (_webhooksLock)
-            {
-                _webhooks.RemoveAll(w => w.evento == evento && w.url == url);
-                _webhooks.Add((evento, url));
-                _logger.LogInformation($"Webhook registrado: evento={evento} url={url}");
-            }
+            string secret = _webhooks.Registrar(evento, url);
+            _logger.LogInformation($"Webhook registrado vía WebhookService: evento={evento} url={url}");
         }
 
         public List<(string evento, string url)> ListarWebhooks()
         {
-            lock (_webhooksLock)
-            {
-                return new List<(string, string)>(_webhooks);
-            }
+            var regs = _webhooks.Listar();
+            return regs.Select(r => (r.evento, r.url)).ToList();
         }
 
         /// <summary>
-        /// Emite un webhook a todas las URLs registradas para ese evento.
-        /// Se ejecuta de forma asíncrona para no bloquear la operación principal.
+        /// Emite un webhook. Delegado al WebhookService que maneja HMAC, retry, etc.
         /// </summary>
         public void EmitirWebhook(string evento, object payload)
         {
-            List<(string evento, string url)> destinos;
-            lock (_webhooksLock)
-            {
-                destinos = _webhooks.Where(w => w.evento == evento || w.evento == "*").ToList();
-            }
-            if (destinos.Count == 0) return;
-
-            var json = System.Text.Json.JsonSerializer.Serialize(new {
-                evento,
-                timestamp = DateTime.UtcNow,
-                payload
-            });
-
-            foreach (var d in destinos)
-            {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-                        var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-                        var resp = await http.PostAsync(d.url, content);
-                        _logger.LogInformation($"Webhook enviado: evento={evento} url={d.url} status={resp.StatusCode}");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning($"Error enviando a {d.url}: {ex.Message}");
-                    }
-                });
-            }
+            _webhooks.Emitir(evento, payload);
         }
     }
 }

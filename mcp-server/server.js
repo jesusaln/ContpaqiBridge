@@ -18,6 +18,8 @@
 
 const http = require('http');
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const { URL } = require('url');
 
 // =====================================================================
@@ -27,7 +29,7 @@ const { URL } = require('url');
 const BRIDGE_URL = process.env.CONTPAQI_BRIDGE_URL || 'http://localhost:5000';
 const API_KEY = process.env.CONTPAQI_API_KEY || '';
 const SERVER_NAME = 'contpaqi-bridge';
-const SERVER_VERSION = '1.0.0';
+const SERVER_VERSION = '1.1.0';
 
 const bridgeUrl = new URL(BRIDGE_URL);
 
@@ -575,10 +577,221 @@ const TOOLS = [
 ];
 
 // =====================================================================
+// CARGA DEL MANUAL DEL SDK (recursos MCP)
+// =====================================================================
+//
+// El manual completo del SDK de CONTPAQi está disponible como recursos MCP
+// (scheme "manual://") para que el LLM pueda consultarlo on-demand sin
+// volver a pedirlo. Fuente original:
+// https://conocimiento.blob.core.windows.net/conocimiento/Manuales/MR_SDK/
+
+const MANUAL_DIR = path.join(__dirname, 'manual_md');
+const MANUAL_INDEX = path.join(MANUAL_DIR, 'index.json');
+
+let MANUAL_ENTRIES = [];     // [{ uri, name, file, size, source, mimeType, description }]
+let MANUAL_BY_URI = new Map();
+let MANUAL_LOAD_ERROR = null;
+
+function loadManualIndex() {
+    try {
+        if (!fs.existsSync(MANUAL_INDEX)) {
+            MANUAL_LOAD_ERROR = `No se encontró ${MANUAL_INDEX}. Ejecuta convert_manual.js primero.`;
+            return;
+        }
+        const raw = fs.readFileSync(MANUAL_INDEX, 'utf8');
+        const arr = JSON.parse(raw);
+        MANUAL_ENTRIES = arr.map((e) => ({
+            uri: e.uri,
+            name: e.name,
+            file: e.file,
+            size: e.size,
+            source: e.source,
+            mimeType: 'text/markdown',
+            description: `Manual de Referencia del SDK CONTPAQi - ${e.name}`
+        }));
+        MANUAL_BY_URI = new Map(MANUAL_ENTRIES.map((e) => [e.uri, e]));
+        process.stderr.write(`[${SERVER_NAME}] Manual cargado: ${MANUAL_ENTRIES.length} capítulos.\n`);
+    } catch (err) {
+        MANUAL_LOAD_ERROR = `Error cargando manual: ${err.message}`;
+        process.stderr.write(`[${SERVER_NAME}] ${MANUAL_LOAD_ERROR}\n`);
+    }
+}
+
+loadManualIndex();
+
+function readManualChapter(uri) {
+    const entry = MANUAL_BY_URI.get(uri);
+    if (!entry) return null;
+    const filePath = path.join(MANUAL_DIR, entry.file);
+    if (!fs.existsSync(filePath)) return null;
+    try {
+        return {
+            uri: entry.uri,
+            mimeType: 'text/markdown',
+            text: fs.readFileSync(filePath, 'utf8')
+        };
+    } catch (err) {
+        return null;
+    }
+}
+
+function searchManual(query, maxResults = 10) {
+    if (!query || !MANUAL_ENTRIES.length) return [];
+    const q = query.toLowerCase();
+    const results = [];
+    for (const entry of MANUAL_ENTRIES) {
+        const filePath = path.join(MANUAL_DIR, entry.file);
+        if (!fs.existsSync(filePath)) continue;
+        try {
+            const text = fs.readFileSync(filePath, 'utf8').toLowerCase();
+            const idx = text.indexOf(q);
+            if (idx >= 0) {
+                // Calcular score simple por número de ocurrencias
+                let count = 0;
+                let pos = 0;
+                while ((pos = text.indexOf(q, pos)) !== -1) {
+                    count++;
+                    pos += q.length;
+                    if (count > 50) break; // límite para evitar búsquedas lentas
+                }
+                results.push({
+                    uri: entry.uri,
+                    name: entry.name,
+                    file: entry.file,
+                    snippet: text.substring(Math.max(0, idx - 60), idx + q.length + 100)
+                        .replace(/\s+/g, ' ')
+                        .trim(),
+                    score: count
+                });
+            }
+        } catch {}
+    }
+    results.sort((a, b) => b.score - a.score);
+    return results.slice(0, maxResults);
+}
+
+// =====================================================================
+// TOOLS DEL MANUAL (backup para clientes sin soporte de resources)
+// =====================================================================
+
+const MANUAL_TOOLS = [
+    {
+        name: 'contpaqi_sdk_manual_list',
+        description: 'Lista los capítulos del Manual de Referencia del SDK de CONTPAQi. Devuelve ~70 capítulos con título, URI y tamaño. Usar cuando el LLM necesita saber qué información está disponible antes de consultarla.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                filtro: { type: 'string', description: 'Texto opcional para filtrar capítulos por título (case-insensitive). Ej: "timbrado", "cliente", "documento".' }
+            },
+            required: []
+        },
+        handler: async ({ filtro } = {}) => {
+            if (!MANUAL_ENTRIES.length) {
+                return { error: MANUAL_LOAD_ERROR || 'Manual no disponible' };
+            }
+            let entries = MANUAL_ENTRIES;
+            if (filtro) {
+                const f = filtro.toLowerCase();
+                entries = entries.filter((e) => e.name.toLowerCase().includes(f));
+            }
+            return {
+                total: entries.length,
+                totalGeneral: MANUAL_ENTRIES.length,
+                capitulos: entries.map((e) => ({
+                    uri: e.uri,
+                    titulo: e.name,
+                    tamaño: e.size
+                }))
+            };
+        }
+    },
+    {
+        name: 'contpaqi_sdk_manual_get',
+        description: 'Obtiene el contenido completo (Markdown) de un capítulo del Manual de Referencia del SDK de CONTPAQi. Use el URI devuelto por contpaqi_sdk_manual_list.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                uri: { type: 'string', description: 'URI del capítulo, formato "manual://<slug>". Ej: "manual://introduccion"' },
+                slug: { type: 'string', description: 'Alternativa al uri: nombre del archivo sin extensión. Ej: "introduccion", "funciones_de_documentos"' }
+            },
+            required: []
+        },
+        handler: async ({ uri, slug } = {}) => {
+            if (!MANUAL_ENTRIES.length) {
+                return { error: MANUAL_LOAD_ERROR || 'Manual no disponible' };
+            }
+            let targetUri = uri;
+            if (!targetUri && slug) {
+                targetUri = 'manual://' + slug.replace(/^manual:\/\//, '');
+            }
+            if (!targetUri) {
+                return { error: 'Especifica uri o slug' };
+            }
+            const chapter = readManualChapter(targetUri);
+            if (!chapter) {
+                return { error: `Capítulo no encontrado: ${targetUri}` };
+            }
+            const entry = MANUAL_BY_URI.get(targetUri);
+            return {
+                uri: chapter.uri,
+                titulo: entry.name,
+                fuente: entry.source,
+                markdown: chapter.text
+            };
+        }
+    },
+    {
+        name: 'contpaqi_sdk_manual_search',
+        description: 'Busca texto en todo el Manual de Referencia del SDK de CONTPAQi. Devuelve los capítulos que contienen el término con un snippet del contexto. Útil para localizar funciones o conceptos específicos.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                query: { type: 'string', description: 'Texto a buscar. Ej: "fAltaDocumento", "timbrado", "UUID"' },
+                limite: { type: 'integer', description: 'Máximo de resultados', default: 5 }
+            },
+            required: ['query']
+        },
+        handler: async ({ query, limite } = {}) => {
+            if (!query) return { error: 'query requerido' };
+            const results = searchManual(query, limite || 5);
+            return {
+                query,
+                total: results.length,
+                resultados: results.map((r) => ({
+                    uri: r.uri,
+                    titulo: r.name,
+                    snippet: '...' + r.snippet + '...',
+                    ocurrencias: r.score
+                }))
+            };
+        }
+    },
+    {
+        name: 'contpaqi_sdk_manual_overview',
+        description: 'Devuelve un índice compacto del manual con todas las URIs y títulos. Útil para inyectar en contexto cuando el LLM necesita conocer la estructura completa.',
+        inputSchema: { type: 'object', properties: {}, required: [] },
+        handler: async () => {
+            if (!MANUAL_ENTRIES.length) {
+                return { error: MANUAL_LOAD_ERROR || 'Manual no disponible' };
+            }
+            // Genera un índice tipo tabla de contenidos
+            const lines = MANUAL_ENTRIES.map((e, i) =>
+                `${String(i + 1).padStart(2, '0')}. [${e.name}](${e.uri}) (${(e.size / 1024).toFixed(1)} KB)`
+            );
+            return {
+                total: MANUAL_ENTRIES.length,
+                indice: lines.join('\n')
+            };
+        }
+    }
+];
+
+// =====================================================================
 // SERVIDOR MCP (JSON-RPC 2.0 sobre stdio)
 // =====================================================================
 
-const TOOL_MAP = new Map(TOOLS.map((t) => [t.name, t]));
+const ALL_TOOLS = [...TOOLS, ...MANUAL_TOOLS];
+const TOOL_MAP = new Map(ALL_TOOLS.map((t) => [t.name, t]));
 
 function sendMessage(msg) {
     const json = JSON.stringify(msg);
@@ -613,7 +826,10 @@ async function handleRequest(req) {
                 sendResult(id, {
                     protocolVersion: '2024-11-05',
                     serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
-                    capabilities: { tools: {} }
+                    capabilities: {
+                        tools: {},
+                        resources: MANUAL_ENTRIES.length > 0 ? {} : undefined
+                    }
                 });
                 break;
 
@@ -622,7 +838,7 @@ async function handleRequest(req) {
                 break;
 
             case 'tools/list': {
-                const tools = TOOLS.map(({ name, description, inputSchema }) => ({
+                const tools = ALL_TOOLS.map(({ name, description, inputSchema }) => ({
                     name, description, inputSchema
                 }));
                 sendResult(id, { tools });
@@ -659,6 +875,59 @@ async function handleRequest(req) {
                         isError: true
                     });
                 }
+                break;
+            }
+
+            case 'resources/list': {
+                if (!MANUAL_ENTRIES.length) {
+                    sendResult(id, { resources: [], _error: MANUAL_LOAD_ERROR || 'Manual no disponible' });
+                    return;
+                }
+                const resources = MANUAL_ENTRIES.map((e) => ({
+                    uri: e.uri,
+                    name: e.name,
+                    description: e.description,
+                    mimeType: e.mimeType,
+                    size: e.size
+                }));
+                sendResult(id, { resources });
+                break;
+            }
+
+            case 'resources/templates/list': {
+                sendResult(id, {
+                    resourceTemplates: [
+                        {
+                            uriTemplate: 'manual://{slug}',
+                            name: 'Capítulo del Manual SDK CONTPAQi',
+                            description: 'Accede a cualquier capítulo del Manual de Referencia del SDK por su slug (nombre del archivo sin extensión). Ej: manual://introduccion, manual://funciones_de_documentos, manual://tipos_de_datos_abstractos_del_sdk',
+                            mimeType: 'text/markdown'
+                        }
+                    ]
+                });
+                break;
+            }
+
+            case 'resources/read': {
+                const { uri } = params || {};
+                if (!uri) {
+                    sendError(id, -32602, 'Falta uri');
+                    return;
+                }
+                const chapter = readManualChapter(uri);
+                if (!chapter) {
+                    sendError(id, -32002, `Recurso no encontrado: ${uri}`);
+                    return;
+                }
+                sendResult(id, {
+                    contents: [
+                        {
+                            uri: chapter.uri,
+                            mimeType: chapter.mimeType,
+                            text: chapter.text
+                        }
+                    ]
+                });
                 break;
             }
 

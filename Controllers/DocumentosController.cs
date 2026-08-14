@@ -121,7 +121,27 @@ namespace ContpaqiBridge.Controllers
 
                 if (resultado.exito)
                 {
-                    return Ok(new { success = true, message = resultado.mensaje });
+                    // Después de timbrar, recuperar el XML para devolver UUID y datos completos
+                    var xmlResult = _sdkService.ObtenerXml(request.RutaEmpresa, request.CodigoConcepto, request.Serie ?? "", request.Folio);
+                    string uuid = null;
+                    string xmlContent = null;
+
+                    if (xmlResult.exito)
+                    {
+                        xmlContent = xmlResult.xml;
+                        var uuidResult = _sdkService.ObtenerUuid(request.RutaEmpresa, request.CodigoConcepto, request.Serie ?? "", request.Folio);
+                        if (uuidResult.exito) uuid = uuidResult.uuid;
+                    }
+
+                    return Ok(new
+                    {
+                        success = true,
+                        message = resultado.mensaje,
+                        uuid,
+                        serie = request.Serie,
+                        folio = request.Folio,
+                        xml = xmlContent
+                    });
                 }
                 else
                 {

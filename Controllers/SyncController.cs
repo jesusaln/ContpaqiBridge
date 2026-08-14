@@ -10,11 +10,13 @@ namespace ContpaqiBridge.Controllers
     {
         private readonly IContpaqiSdkService _sdkService;
         private readonly ILogger<SyncController> _logger;
+        private readonly WebhookService _webhooks;
 
-        public SyncController(IContpaqiSdkService sdkService, ILogger<SyncController> logger)
+        public SyncController(IContpaqiSdkService sdkService, ILogger<SyncController> logger, WebhookService webhooks)
         {
             _sdkService = sdkService;
             _logger = logger;
+            _webhooks = webhooks;
         }
 
         // ====================================================================
@@ -221,6 +223,33 @@ namespace ContpaqiBridge.Controllers
                 });
             }
             catch (Exception ex) { return StatusCode(500, new { success = false, message = ex.Message }); }
+        }
+
+        // ====================================================================
+        // ============ SYNC LOG ================================================
+        // ====================================================================
+
+        /// <summary>
+        /// Devuelve las últimas N entradas del sync log (webhooks entregados, fallidos, sync ops).
+        /// Útil para diagnóstico: "qué pasó la última vez que intenté sincronizar".
+        /// </summary>
+        [HttpGet("log")]
+        public IActionResult Log([FromQuery] int ultimas = 100)
+        {
+            try
+            {
+                var entries = _webhooks.ObtenerLog(Math.Min(ultimas, 1000));
+                return Ok(new
+                {
+                    success = true,
+                    count = entries.Count,
+                    entries
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
     }
 

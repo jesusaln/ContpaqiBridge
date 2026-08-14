@@ -48,7 +48,10 @@ namespace ContpaqiBridge.Controllers
                     request.CodigoPostal ?? "",
                     request.Ciudad ?? "",
                     request.Estado ?? "",
-                    request.Pais ?? "México"
+                    request.Pais ?? "México",
+                    request.RegimenFiscal ?? "",
+                    request.UsoCFDI ?? "",
+                    request.FormaPago ?? ""
                 );
 
                 if (resultado.exito)
